@@ -1,4 +1,20 @@
-# Steg 3 — verifiering 2026-10-18
+# Serverkonfiguration — verifiering 2026-10-18
+
+Den tidigare konfigurationskontrollen accepterade bara moderna `sb_secret_`-nycklar, trots att Supabase även stöder aktiverade äldre `service_role`-JWT. Båda formaten stöds nu; public/anon- och vanliga användarnycklar avvisas. Formatvalidering ersätter inte autentisering: den inloggade inställningssidan verifierar serverbehörighet med ett ägaravgränsat HEAD-anrop utan att hämta datarader. Timeout är fem sekunder och status kan återanvändas i högst 30 sekunder.
+
+Konfigurationsfel skiljer nu mellan saknat värde, fel format, för kort cron-hemlighet, blanksteg/radbrytningar och nekad serveranslutning. Endast statiska meddelanden och variabelnamn returneras; inga nyckelvärden eller råa leverantörsfel. Gmail-statusfel blockerar inte längre automatiseringsinställningar och sparade budgetar. Central paus fungerar även med felaktig serverkonfiguration. Inga Auth-/RLS-/Deployment Protection-inställningar ändras.
+
+**75 automatiska tester**, **19 olika webbläsarkontroller**, TypeScript och produktionsbygget passerar. Browserproven kördes mot en färsk server på port 3014: 18 prov passerade i helkörningen; det nya provet fick en korrigerad väntan på sparbekräftelsen och passerade sedan separat. Mobilprovet verifierar specifikt felmeddelande, fortsatt åtkomst när Gmail-status misslyckas, paus och ny konfigurationskontroll. Nya serverprov använder verklig Supabase-klient med simulerade HTTP-svar; ingen privat produktionsnyckel eller betald AI-körning används.
+
+Vercels metadata bekräftar att `SUPABASE_SECRET_KEY`, `CRON_SECRET` och `OPENAI_API_KEY` finns som Sensitive i Production. Användarens ompublicering av `db7507f` är READY och gjordes efter att variablerna lades till. **Värdenas riktighet är inte verifierad** genom denna metadata. Den tidigare generiska feltexten fastställer inte vilken variabel som är felaktig. Extern sidkontroll och byggloggar nekas av Vercel-anslutningen med 403; åtkomstskyddet behålls. Det nya beskedet i Settings behöver kontrolleras med användarens inloggade session efter publicering.
+
+Läsning av produktionsdatabasen bekräftar **central automatisering aktiverad**, **$2/dag**, **$10/månad** och **0 skanningsscheman**. Inga budgetsiffror, scheman eller data ändras i denna rättning. Ursprunglig backup har fortsatt SHA256 `51ee6147163c6fc81d2ca7af1b62f37b1e3ea5ab21af038a8e862ae3a9463559`. Källkontrollen hittade inga privata miljöfiler eller credential-mönster bland de 110 granskade filerna före denna dokumentuppdatering.
+
+---
+
+Nedan följer historiska verifieringar med den konfiguration som gällde vid respektive kontroll.
+
+# Steg 3 — tidigare verifiering 2026-10-18
 
 ## Genomfört
 
@@ -37,7 +53,7 @@ Efter migrationen: inga nya anonyma SECURITY DEFINER-anrop. Informationsrad om e
 
 ---
 
-Nedanstående är historiska verifieringar. Aktuell status står ovan.
+Nedanstående är äldre historiska verifieringar. Aktuell status står överst.
 
 # Scout-felsökning — 2026-10-18
 

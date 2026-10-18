@@ -1,3 +1,7 @@
+import {
+  serverSupabaseKey,
+  validCronSecret,
+} from "../lib/server-configuration.mjs";
 // Read-only configuration validation. Never print values or call a paid API.
 const env = process.env;
 let failures = 0;
@@ -67,10 +71,8 @@ if (unsafePublicConfig) {
 }
 // Optional feature groups are checked only when requested; never display values.
 if (process.argv.includes("--automation") || process.argv.includes("--email")) {
-  check("SUPABASE_SECRET_KEY", (value) =>
-    /^sb_secret_[A-Za-z0-9_-]+$/.test(value),
-  );
-  check("CRON_SECRET", (value) => value.length >= 32);
+  check("SUPABASE_SECRET_KEY", (value) => Boolean(serverSupabaseKey(value)));
+  check("CRON_SECRET", validCronSecret);
 }
 if (process.argv.includes("--email")) {
   check("GOOGLE_CLIENT_ID", (value) =>

@@ -19,14 +19,20 @@ Befintlig kod, analyser och historik bevaras. Inga nya Supabase- eller Vercel-pr
 ## Aktivera bakgrundskörningar
 
 1. Använd befintligt Supabase-projekt **jarvis**, ref `yqzdkzwwqanwzeslmxtd`. Säkerställ att alla nya migrationer i `supabase/migrations/` är installerade. Kör aldrig de fyra ursprungliga migrationerna igen. Aktuell installationsstatus dokumenteras i `VERIFICATION.md`.
-2. Öppna [Supabase API Keys](https://supabase.com/dashboard/project/yqzdkzwwqanwzeslmxtd/settings/api-keys). Under **Secret keys**: kopiera en befintlig servernyckel (`sb_secret_…`) eller skapa en separat nyckel för Jarvis-servern. Denna nyckel har höga databasrättigheter och får endast finnas på servern.
+2. Öppna [Supabase API Keys](https://supabase.com/dashboard/project/yqzdkzwwqanwzeslmxtd/settings/api-keys). Under **Secret keys**: kopiera en befintlig servernyckel (`sb_secret_…`) eller skapa en separat nyckel för Jarvis-servern. En befintlig äldre **service_role**-JWT fungerar också så länge den är aktiverad i Supabase; en modern Secret key rekommenderas. Använd aldrig publishable/anon här. Denna nyckel har höga databasrättigheter och får endast finnas på servern. Se [Supabases nyckeltyper](https://supabase.com/docs/guides/api/api-keys).
 3. Öppna [Vercels projektvariabler](https://vercel.com/fante/jarvis-ai-platform/settings/environment-variables). Lägg nyckeln som **SUPABASE_SECRET_KEY**, endast **Production**, typ **Sensitive**. Behåll den befintliga publika Supabase-nyckeln för vanlig inloggning; ersätt den inte.
-4. Generera privat en slumphemlighet på minst 32 tecken, exempelvis med `openssl rand -hex 32` på din egen dator. Lägg resultatet direkt i Vercel som **CRON_SECRET**, endast **Production**, **Sensitive**. Lägg aldrig värdet i chatten, koden eller GitHub.
+4. Generera privat en slumphemlighet på minst 32 tecken, exempelvis med `openssl rand -hex 32` på din egen dator. Lägg **resultatet**, inte kommandot, direkt i Vercel som **CRON_SECRET**, endast **Production**, **Sensitive**. Klistra in utan citattecken, radbrytningar eller blanksteg i början/slutet. Lägg aldrig värdet i chatten, koden eller GitHub.
 5. Gör **Redeploy** i samma Vercel-projekt. Kontrollera att Cron Jobs visar `/api/cron/market-scan` dagligen cirka **06 UTC**. På Vercel Hobby kan tiden ligga inom den aktuella timmen; tätare scheman kräver annan plan och ändrad cron-frekvens. Appen utlovar inte timvisa skanningar.
 6. Öppna Jarvis → **Settings → Marknadsskanningar & budget**. Ange dags-/månadsbudget, skapa ett offentligt sökområde och välj dagligen eller veckovis. Kryssa i schemats aktivering och aktivera central automatisering. Uppdrag kan köras vid nästa dagliga kontroll; ett förfallet schema kan även testas med Vercels **Run** för Cron Jobs efter att du valt och sparat budgeten.
 7. Kontrollera körhistorik, källor och dagens sammanfattning. **Pausa all automatisering** stoppar nya automatiska uppdrag och begär stopp före nästa steg i pågående schemalagda analyser. Ett redan påbörjat API-anrop kan fortfarande kosta pengar.
 
 Vanlig manuell analys, CRM och säljutkast använder fortsatt användarens Supabase-session och behöver inte servernyckeln. `SUPABASE_SECRET_KEY` används bara av autentiserad bakgrundsarbetare och serverns mejlintegration. RLS är kvar för vanliga användare; cron och mejlservern scope:ar varje begäran till rätt ägare. Servernyckeln är aldrig tillgänglig i klientkod eller API-svar.
+
+### Om serverkonfigurationen underkänns
+
+Settings visar variabelnamn och en specifik felkategori: saknad inställning, fel format, för kort cron-hemlighet eller nekad Supabase-anslutning. Nyckelvärden och råa leverantörsfel visas aldrig. Ändra bara den utpekade variabeln i Vercel Production och gör Redeploy; en befintlig deployment får inte nya värden automatiskt. Att en variabel finns i Vercels lista bevisar inte att innehållet är giltigt.
+
+Den inloggade konfigurationskontrollen gör ett ägaravgränsat **HEAD**-anrop mot en serverbehörighet, utan att läsa rader eller mejltokens. Godkänt format är inte autentisering: även äldre JWT-nycklar måste accepteras av rätt Supabase-projekt. Anslutningsresultatet kan återanvändas i högst 30 sekunder. **Kontrollera konfiguration igen** uppdaterar sidan utan betalda AI-anrop. Det gröna beskedet verifierar serveranslutningen och formatkontrollerna, inte att OpenAI-nyckeln fungerar eller att en riktig Cron-körning har slutförts. Paus fungerar även om konfigurationen underkänns.
 
 ## Budgetmodell
 

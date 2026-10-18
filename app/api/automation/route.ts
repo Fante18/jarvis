@@ -12,7 +12,7 @@ import {
 import {
   automationSnapshot,
   saveDigest,
-  workerConfigured,
+  workerReadiness,
 } from "@/lib/server/automation/service";
 export async function GET(req: Request) {
   try {
@@ -39,11 +39,14 @@ export async function POST(req: Request) {
     const body = await jsonBody(req);
     if (body.action === "controls") {
       const input = controlsSchema.parse(body.controls);
-      if (input.enabled && !workerConfigured())
-        throw new HttpError(
-          503,
-          "Schemaläggaren behöver SUPABASE_SECRET_KEY och CRON_SECRET i Vercel. Följ driftguiden innan du aktiverar.",
-        );
+      if (input.enabled) {
+        const readiness = await workerReadiness(user.id);
+        if (!readiness.configured)
+          throw new HttpError(
+            503,
+            readiness.issues.map((i) => i.message).join(" "),
+          );
+      }
       dbCheck(
         (
           await db.from("automation_controls").upsert(

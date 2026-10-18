@@ -102,22 +102,48 @@ export default function AutomationSettings({
             {!ops.data.worker_configured && (
               <div className="config-callout">
                 <ShieldCheck size={20} />
-                <p>
-                  Bakgrundskörningar kräver <code>SUPABASE_SECRET_KEY</code> och{" "}
-                  <code>CRON_SECRET</code> på servern. Du kan förbereda scheman
-                  nu. Aktivering blir tillgänglig efter konfiguration och
-                  ompublicering. Se{" "}
-                  <a
-                    href="https://github.com/Fante18/jarvis/blob/main/docs/PHASE3.md"
-                    target="_blank"
-                    rel="noreferrer"
+                <div>
+                  <strong>Serverkonfigurationen behöver kontrolleras</strong>
+                  {ops.data.worker_issues?.length ? (
+                    <ul>
+                      {ops.data.worker_issues.map((i) => (
+                        <li key={i.variable + i.code}>{i.message}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>
+                      Kontrollera SUPABASE_SECRET_KEY och CRON_SECRET i Vercel
+                      Production. Publicera om efter ändrade värden.
+                    </p>
+                  )}
+                  <p>
+                    Nycklarnas värden visas aldrig här.{" "}
+                    <a
+                      href="https://github.com/Fante18/jarvis/blob/main/docs/PHASE3.md"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Öppna driftguiden ↗
+                    </a>
+                  </p>
+                  <button
+                    type="button"
+                    className="button secondary small"
+                    disabled={ops.loading}
+                    onClick={() => void ops.refresh()}
                   >
-                    driftguiden ↗
-                  </a>
-                  .
-                </p>
+                    Kontrollera konfiguration igen
+                  </button>
+                </div>
               </div>
             )}
+            {ops.data.worker_connection_verified &&
+              ops.data.worker_configured && (
+                <p className="help-note">
+                  Serveranslutningen till Supabase är verifierad.
+                  Schemaläggarens konfigurationskontroller passerar.
+                </p>
+              )}
             <form
               className="form-stack"
               onSubmit={(e) => {
@@ -174,7 +200,7 @@ export default function AutomationSettings({
                 <input
                   type="checkbox"
                   checked={controls.enabled}
-                  disabled={!ops.data.worker_configured}
+                  disabled={!ops.data.worker_configured && !controls.enabled}
                   onChange={(e) =>
                     setControls({ ...controls, enabled: e.target.checked })
                   }

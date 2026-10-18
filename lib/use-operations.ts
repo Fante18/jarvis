@@ -28,6 +28,8 @@ export type Operations = {
   controls: Controls;
   schedules: Schedule[];
   worker_configured: boolean;
+  worker_issues: { variable: string; code: string; message: string }[];
+  worker_connection_verified: boolean;
   daily_microusd: number;
   monthly_microusd: number;
   digest: Digest | null;
@@ -49,12 +51,14 @@ export type Operations = {
   };
   trend: { day: string; net_cents: number }[];
   analyses: AnalysisSummary[];
-  gmail: { email: string | null; configured: boolean };
+  gmail: { email: string | null; configured: boolean; error?: string };
 };
 const blank = (): Operations => ({
   controls: defaultControls,
   schedules: [],
   worker_configured: false,
+  worker_issues: [],
+  worker_connection_verified: false,
   daily_microusd: 0,
   monthly_microusd: 0,
   digest: null,
@@ -85,11 +89,17 @@ export function useOperations(state: WorkspaceState, poll = true) {
           api(force ? "/api/automation?refresh=1" : "/api/automation"),
           api("/api/crm"),
           api("/api/ai/analyses"),
-          api("/api/integrations/gmail"),
+          // Integration failures must not hide the worker diagnostic or saved budgets.
+          api("/api/integrations/gmail").catch(() => ({
+            email: null,
+            configured: false,
+            error:
+              "Gmails anslutningsstatus kunde inte kontrolleras. Kontrollera serverkonfigurationen och försök igen.",
+          })),
         ]);
         if (version !== requestVersion.current) return;
         setData({ ...blank(), ...a, ...c, analyses: r.analyses, gmail: g });
-        setError("");
+        setError(g.error || "");
       } catch (e) {
         if (version === requestVersion.current) setError((e as Error).message);
       } finally {

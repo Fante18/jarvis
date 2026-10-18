@@ -35,6 +35,8 @@ async function setup(page: Page) {
   const automation = {
     controls: defaultControls,
     worker_configured: false,
+    worker_issues: [] as { variable: string; code: string; message: string }[],
+    worker_connection_verified: false,
     schedules: [] as unknown[],
     daily_microusd: 60721,
     monthly_microusd: 60721,
@@ -118,6 +120,61 @@ async function setup(page: Page) {
   });
   return { w, automation, crm, requests };
 }
+test("identifies the invalid scheduler setting and permits pausing an enabled workspace", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const f = await setup(page);
+  f.automation.controls = { ...defaultControls, enabled: true };
+  f.automation.worker_issues = [
+    {
+      variable: "CRON_SECRET",
+      code: "too_short",
+      message:
+        "CRON_SECRET är för kort. Den måste innehålla minst 32 slumpmässiga tecken.",
+    },
+  ];
+  // A rejected server key also breaks Gmail's status request. Worker diagnostics
+  // and pause controls must remain usable when that optional integration fails.
+  await page.route("**/api/integrations/gmail", (r) =>
+    r.fulfill({ status: 503, json: { error: "Test connection failure" } }),
+  );
+  await page.goto("/settings");
+  await expect(
+    page.getByText(/Gmails anslutningsstatus kunde inte kontrolleras/),
+  ).toBeVisible();
+  await expect(
+    page.getByText(f.automation.worker_issues[0].message, { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(391);
+  const enabled = page.getByLabel("Tillåt schemalagda analyser inom budgeten");
+  await expect(enabled).toBeChecked();
+  await expect(enabled).toBeEnabled();
+  await enabled.uncheck();
+  await page
+    .getByRole("button", { name: "Spara budget och automatisering" })
+    .click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Sparat." }),
+  ).toBeVisible();
+  await expect(enabled).toBeDisabled();
+  expect(
+    f.requests.find((r) => r.body.action === "controls")?.body.controls.enabled,
+  ).toBe(false);
+  f.automation.worker_configured = true;
+  f.automation.worker_connection_verified = true;
+  f.automation.worker_issues = [];
+  await page
+    .getByRole("button", { name: "Kontrollera konfiguration igen" })
+    .click();
+  await expect(
+    page.getByText(/Serveranslutningen till Supabase är verifierad/),
+  ).toBeVisible();
+  await expect(enabled).toBeEnabled();
+  await expect(page.getByText(/CRON_SECRET är för kort/)).toHaveCount(0);
+});
 test("prepares a weekly scan while missing worker credentials keep automatic execution disabled", async ({
   page,
 }) => {

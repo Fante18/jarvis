@@ -1,6 +1,11 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { timingSafeEqual } from "node:crypto";
+import { timingSafeEqual, createHash } from "node:crypto";
+import {
+  serverSupabaseKey,
+  validCronSecret,
+  workerConfiguration,
+} from "@/lib/server-configuration.mjs";
 import { HttpError, dbCheck } from "../http";
 import {
   defaultControls,
@@ -9,36 +14,92 @@ import {
   type Controls,
 } from "@/lib/automation";
 import type { AnalysisJob, Source } from "@/lib/analysis/contracts";
-export function workerConfigured() {
-  return Boolean(
-    /^sb_secret_[A-Za-z0-9_-]+$/.test(process.env.SUPABASE_SECRET_KEY || "") &&
-      (process.env.CRON_SECRET?.length || 0) >= 32 &&
-      process.env.OPENAI_API_KEY,
-  );
-}
+export type WorkerIssue = { variable: string; code: string; message: string };
 export function serverDb() {
-  if (
-    !/^sb_secret_[A-Za-z0-9_-]+$/.test(process.env.SUPABASE_SECRET_KEY || "") ||
-    !process.env.NEXT_PUBLIC_SUPABASE_URL
-  )
+  const key = serverSupabaseKey(process.env.SUPABASE_SECRET_KEY);
+  if (!key || !process.env.NEXT_PUBLIC_SUPABASE_URL)
     throw new HttpError(
       503,
-      "Serveranslutning saknas. Lägg SUPABASE_SECRET_KEY som Sensitive i Vercel enligt driftguiden.",
+      "Serveranslutningen är inte klar. Kontrollera SUPABASE_SECRET_KEY och NEXT_PUBLIC_SUPABASE_URL i Settings.",
     );
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SECRET_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+let connectionCache: {
+  expires: number;
+  fingerprint: string;
+  issue: WorkerIssue | null;
+} | null = null;
+export async function workerReadiness(userId: string) {
+  const config = workerConfiguration(process.env);
+  const issues: WorkerIssue[] = [...config.issues];
+  const canProbe = !issues.some((i) =>
+    ["SUPABASE_SECRET_KEY", "NEXT_PUBLIC_SUPABASE_URL"].includes(i.variable),
   );
+  let connectionVerified = false;
+  if (canProbe) {
+    const fingerprint = createHash("sha256")
+      .update(
+        (process.env.SUPABASE_SECRET_KEY || "") +
+          "|" +
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+      )
+      .digest("hex");
+    let issue: WorkerIssue | null;
+    if (
+      connectionCache &&
+      connectionCache.expires > Date.now() &&
+      connectionCache.fingerprint === fingerprint
+    )
+      issue = connectionCache.issue;
+    else {
+      try {
+        // HEAD only: tests a server-only grant. Never retrieve encrypted tokens or email addresses.
+        const result = await serverDb()
+          .from("email_connections")
+          .select("user_id", { head: true })
+          .eq("user_id", userId)
+          .limit(1)
+          .abortSignal(AbortSignal.timeout(5000));
+        issue = !result.error
+          ? null
+          : {
+              variable: "SUPABASE_SECRET_KEY",
+              code: [401, 403].includes(result.status)
+                ? "authentication_failed"
+                : "connection_failed",
+              message: [401, 403].includes(result.status)
+                ? "Supabase nekar servernyckeln. Kontrollera att SUPABASE_SECRET_KEY är en Secret/service_role-nyckel från samma projekt som NEXT_PUBLIC_SUPABASE_URL. Publicera om efter ändringen."
+                : "Serveranslutningen till Supabase kunde inte verifieras. Kontrollera projektadress, servernyckel och installerade migrationer och försök igen.",
+            };
+      } catch {
+        issue = {
+          variable: "SUPABASE_SECRET_KEY",
+          code: "connection_failed",
+          message:
+            "Tidsgränsen eller nätverket hindrade kontrollen av Supabase-serveranslutningen. Försök igen.",
+        };
+      }
+      connectionCache = { expires: Date.now() + 30000, fingerprint, issue };
+    }
+    if (issue) issues.push(issue);
+    else connectionVerified = true;
+  }
+  return {
+    configured: issues.length === 0,
+    issues,
+    connection_verified: connectionVerified,
+  };
 }
 export function authorizeCron(header: string | null) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || secret.length < 32)
+  if (!validCronSecret(secret))
     throw new HttpError(
       503,
       "Schemaläggaren saknar säker serverkonfiguration.",
     );
-  const expected = Buffer.from(`Bearer ${secret}`),
+  const expected = Buffer.from(`Bearer ${secret!}`),
     actual = Buffer.from(header || "");
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual))
     throw new HttpError(401, "Ej tillåtet.");
@@ -280,6 +341,7 @@ export async function automationSnapshot(db: SupabaseClient, userId: string) {
   [controls, schedules, daily, monthly, audit, feedback].forEach((r) =>
     dbCheck(r.error),
   );
+  const readiness = await workerReadiness(userId);
   return {
     controls: (controls.data || defaultControls) as Controls,
     schedules: schedules.data || [],
@@ -288,6 +350,8 @@ export async function automationSnapshot(db: SupabaseClient, userId: string) {
     audit: audit.data || [],
     feedback: feedback.data || [],
     calibration: calibration(feedback.data || []),
-    worker_configured: workerConfigured(),
+    worker_configured: readiness.configured,
+    worker_issues: readiness.issues,
+    worker_connection_verified: readiness.connection_verified,
   };
 }
