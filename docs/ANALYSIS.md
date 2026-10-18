@@ -50,7 +50,7 @@ Budgetkontroller sker före anrop, inte bara genom att läsa kostnaden efteråt.
 
 Stoppa begär avbrott före nästa modellanrop. Ett redan skickat anrop kan behöva avslutas och debiteras. Plattformskrascher lämnar delresultaten kvar. Efter den fem minuter långa låsperioden kan körningen återupptas manuellt; inga dolda scheman eller obegränsade omförsök körs. API:t använder Vercel `maxDuration=300`; kontrollera att den valda hostingplanen stöder det. Denna första version har inte en separat kö/worker för körningar längre än fyra minuter.
 
-Kör samtliga migrationer, inklusive `20261017230742_analysis_pipeline.sql`, och konfigurera Supabase samt `OPENAI_API_KEY` enligt README. `OPENAI_MODEL` måste vara `gpt-4.1-mini` för den nya prisramen. Utan tjänsterna visas konfiguration; inga live-analyser simuleras.
+Migrationerna, inklusive `20261018124552_analysis_pipeline.sql`, är installerade i det befintliga Supabase-projektet `jarvis`. Se `PRODUCTION_SETUP.md` för driftinställningarna. `OPENAI_MODEL` måste vara `gpt-4.1-mini` för den nya prisramen. Utan OpenAI-nyckel visas konfiguration; inga live-analyser simuleras.
 
 ## Verifiering
 

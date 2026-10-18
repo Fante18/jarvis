@@ -245,32 +245,34 @@ export default function SettingsPanel({ state }: { state: WorkspaceState }) {
           <h3>Kom igång med riktig data</h3>
           <ol>
             <li>
-              Skapa ett Supabase-projekt och kör{" "}
-              <code>supabase/migrations/001_foundation.sql</code> följt av{" "}
-              <code>002_hardening.sql</code> och{" "}
-              <code>003_ai_workflows.sql</code> och{" "}
-              <code>20261017230742_analysis_pipeline.sql</code> i SQL Editor.
+              Använd ditt befintliga Supabase-projekt. Migrationerna i{" "}
+              <code>supabase/migrations/</code> ska vara installerade i
+              filnamnsordning. Kör inte redan installerade migrationer igen.
             </li>
             <li>
-              Kopiera <code>.env.example</code> till <code>.env.local</code> och
-              ange projektets URL och publishable key.
+              Ange projektets URL och publishable key i Vercels
+              miljövariabler för Production. Vid lokal utveckling används{" "}
+              <code>.env.local</code> med <code>.env.example</code> som mall.
             </li>
             <li>
-              Lägg till <code>OPENAI_API_KEY</code> på servern. Lägg aldrig
-              hemliga nycklar i klientkod eller i chatten.
+              Lägg till <code>OPENAI_API_KEY</code> som Secret i Vercel och
+              sätt <code>OPENAI_MODEL=gpt-4.1-mini</code>. Lägg aldrig hemliga
+              nycklar i klientkod eller i chatten.
             </li>
             <li>
               Sätt <code>APP_URL</code> till appens exakta adress och lägg till{" "}
               <code>/auth/callback</code> som tillåten redirect i Supabase.
             </li>
             <li>
-              Starta om servern. Skapa konto, bekräfta din e-post och logga in.
+              Publicera om efter ändrade miljövariabler. Skapa konto,
+              bekräfta din e-post i samma webbläsare och logga in.
             </li>
           </ol>
           <div className="env-list">
             <code>NEXT_PUBLIC_SUPABASE_URL</code>
             <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code>
             <code>OPENAI_API_KEY</code>
+            <code>OPENAI_MODEL</code>
             <code>APP_URL</code>
           </div>
         </div>

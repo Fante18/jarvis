@@ -1,4 +1,18 @@
-# Analysmotor — verifiering 2026-10-17
+# Driftförberedelser — 2026-10-18
+
+- GitHub-kopplingen från `Fante18/jarvis` till befintligt Vercel-projekt `jarvis-ai-platform` är bekräftad genom Vercels repository-filter.
+- Befintligt Supabase-projekt `jarvis` (`yqzdkzwwqanwzeslmxtd`) är ACTIVE_HEALTHY. De fyra befintliga migrationerna installerades utan ändrat SQL-innehåll. Lokala filnamn matchar verkliga migrationsversioner; gamla namn finns i `docs/PRODUCTION_SETUP.md` och ursprunglig backup bevaras.
+- Katalogkontroll i riktiga databasen: 14 apptabeller med RLS, ägarpolicies, `security_invoker=true` på sammanställningsvyn och privat research-bucket. Anonymt läsanrop mot riktiga Data API nekades med HTTP 401.
+- Riktigt läsanrop till Auth settings gav HTTP 200: e-postinloggning och registrering tillåtna, e-postbekräftelse krävs. Ingen användare skapades och inget mejl skickades. Site URL/Redirect URLs återstår att kontrollera manuellt.
+- Fyra produktionsvariabler är inlagda i Vercel: Supabase URL/publishable key, APP_URL och OPENAI_MODEL. Inga hemliga värden är incheckade eller utskrivna. OPENAI_API_KEY saknas fortfarande.
+- Konfigurationskontrollens fall för saknade värden, giltiga format, hemlighetsredigering, privat Supabase-nyckel, fel modell och publikt exponerad hemlighet passerar.
+- Förnyad lokal kontroll: 36 Vitest-tester, 12 Chromium-tester, typkontroll och produktionsbygge passerar. `npm run test:live` avbröts uttryckligen på saknad OPENAI_API_KEY före nätverksanrop.
+- Supabase Security Advisors varningar om SECURITY DEFINER-funktioner är granskade och dokumenterade i driftguiden. Behörigheter för Supabases egen event-trigger eller projektets Auth/Deployment Protection har inte ändrats.
+- Ny kontroll av skyddad produktions-HTTP via Vercel-anslutningen nekades med 403. Detta bevisar en åtkomstbegränsning, inte att appens HTTP-flöde passerar. Extern inloggning/CRUD behöver verifieras med riktig användarsession.
+
+Ett komplett betalt Scout-till-Jarvis-test har fortfarande **inte** körts mot OpenAI. Använd aktiveringsstegen i [driftguiden](docs/PRODUCTION_SETUP.md). Nedanstående resultat från 2026-10-17 är historik, inte aktuella uppgifter om anslutna resurser.
+
+# Analysmotor — historisk verifiering 2026-10-17
 
 - **36 automatiska data-, integritets-, SDK- och PostgreSQL-tester passerar.**
 - **12 Chromium-tester passerar** mot produktionsbygget, inklusive direktlänk till sparad analys, poängkort, källor, ekonomiska scenarier, hela specialistkedjans historik, konfigurationsgränser och de gamla CRUD-funktionerna.

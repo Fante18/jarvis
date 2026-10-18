@@ -35,10 +35,10 @@ grant usage on schema storage to authenticated; grant select,insert,delete on st
 insert into auth.users values('${alice}'),('${bob}');
 `);
   for (const file of [
-    "001_foundation.sql",
-    "002_hardening.sql",
-    "003_ai_workflows.sql",
-    "20261017230742_analysis_pipeline.sql",
+    "20261018124548_foundation.sql",
+    "20261018124550_hardening.sql",
+    "20261018124551_ai_workflows.sql",
+    "20261018124552_analysis_pipeline.sql",
   ]) {
     await db.exec(
       readFileSync(`supabase/migrations/${file}`, "utf8").replace(

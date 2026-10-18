@@ -16,7 +16,9 @@ npm run dev
 
 ## Supabase
 
-1. Skapa ett nytt projekt. Kör `supabase/migrations/001_foundation.sql` sedan `002_hardening.sql` `003_ai_workflows.sql` och `20261017230742_analysis_pipeline.sql` i SQL Editor, alternativt använd Supabase CLI migrationshantering.
+Produktionsprojektet `jarvis` finns redan och de fyra migrationerna är installerade. Se [exakta produktionsinställningar och återstående aktivering](docs/PRODUCTION_SETUP.md). Skapa inte ett nytt projekt och kör inte redan installerade migrationer igen.
+
+1. För en separat, tom utvecklingsdatabas: kör SQL-filerna i `supabase/migrations/` i filnamnsordning, alternativt använd Supabase CLI migrationshantering. Produktionsdatabasens versionsnummer matchar filnamnen.
 2. Ange `NEXT_PUBLIC_SUPABASE_URL` och `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` i `.env.local`. Äldre anon key fungerar också som publishable key.
 3. Sätt `APP_URL=http://localhost:3000`. Lägg till `http://localhost:3000/auth/callback` under Authentication → URL Configuration → Redirect URLs. Sätt Site URL till appens URL.
 4. Starta om appen, öppna Settings, skapa konto och bekräfta e-post. E-postbekräftelse ska förbli aktiverad. För publik drift: konfigurera egen SMTP och Supabase Auths rate limits/bot-skydd enligt er policy.
@@ -46,7 +48,7 @@ Rapporter skiljer verifierade ordagranna källcitat från uppskattningar och hyp
 
 Den nya motorn har en förhandsreserverad API-budget ($1.20–$2.00/analys), en låst modell/prisram, begränsade steg och tidsgränser. Befintliga enstaka anpassade agentkörningar nedan bevaras separat med sin äldre riktbudget.
 
-Lägg till `OPENAI_API_KEY` på servern. Standardmodell: `gpt-4.1-mini`; `OPENAI_MODEL` kan ange en annan Responses-kompatibel modell med stöd för webbsökning och strukturerade utdata. Kontrollera behörighet i ert OpenAI-projekt.
+Lägg till `OPENAI_API_KEY` på servern. Det kompletta analysflödet kräver `OPENAI_MODEL=gpt-4.1-mini` för sin prisram; välj denna modell även för befintlig chatt och enstaka agentkörningar. Kontrollera modellbehörighet i ert OpenAI-projekt.
 
 Skapa en agent med typ research, opportunity eller sales, aktivera den och välj Kör agent. Agents SDK genomför ett avgränsat uppdrag med ett modellsvar och högst tre inbyggda webbsökningsanrop. Rapporten valideras och sparar högst tre poster av varje typ i en atomisk transaktion. Körhistorik visar tokens, resultat eller fel. Övergivna körningar markeras som misslyckade vid nästa start efter två minuter.
 
@@ -62,7 +64,9 @@ Market Intelligence har ett researchbibliotek för PDF, TXT och CSV, högst 4 MB
 
 ## Vercel
 
-1. Importera denna katalog som projektets rot i Vercel. Framework: **Next.js**. Build: `npm run build`.
+Det befintliga projektet `jarvis-ai-platform` är kopplat till `Fante18/jarvis`. Återanvänd projektet och produktionsbranchen `main`; skapa inget nytt Vercel-projekt.
+
+1. Projektets rot är repositoryts rot. Framework: **Next.js**. Build: `npm run build`. Install: `npm ci`.
 2. Ange miljövariabler från `.env.example` i Vercels servermiljö. Använd separata Supabase-projekt och OpenAI-budgetar för utveckling/produktion.
 3. Sätt `APP_URL` till den exakta produktionsadressen (utan avslutande `/`) och lägg till motsvarande `/auth/callback` i Supabase.
 4. Publicera. Kontrollera inloggning med två separata användare, filisolering och ett begränsat AI-uppdrag innan extern lansering.
