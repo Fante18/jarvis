@@ -59,7 +59,7 @@ export default function ApprovalsView({
                   </span>
                 </div>
                 <h2>{a.title}</h2>
-                <p>{a.description}</p>
+                <p className="pre-wrap">{a.description}</p>
                 <small>
                   Typ: {a.action_type} · Uppskattad kostnad: {money(a.amount)}
                 </small>

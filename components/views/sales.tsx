@@ -1,4 +1,5 @@
 "use client";
+import CrmWorkbench from "../operations/crm";
 import { money } from "@/lib/domain";
 import { Trash2 } from "lucide-react";
 import { statusLabels } from "../ui";
@@ -14,6 +15,7 @@ export default function SalesView({
   const { data } = state;
   return (
     <>
+      <CrmWorkbench state={state} />
       <div className="sales-stats">
         {[
           ["Pipeline", money(stats.pipeline)],
@@ -67,12 +69,22 @@ export default function SalesView({
                       aria-label={`Försäljningssteg för ${l.company}`}
                       value={l.stage}
                       onChange={(e) => {
-                        const { id, created_at, updated_at, ...p } = l;
+                        const p = Object.fromEntries(
+                          Object.entries(l).filter(
+                            ([k]) =>
+                              ![
+                                "id",
+                                "user_id",
+                                "created_at",
+                                "updated_at",
+                              ].includes(k),
+                          ),
+                        );
                         guardError(() =>
                           state.mutate(
                             "leads",
                             { ...p, stage: e.target.value },
-                            id,
+                            l.id,
                           ),
                         );
                       }}

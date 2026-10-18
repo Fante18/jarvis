@@ -16,7 +16,7 @@ npm run dev
 
 ## Supabase
 
-Produktionsprojektet `jarvis` finns redan och de fyra migrationerna är installerade. Se [exakta produktionsinställningar och återstående aktivering](docs/PRODUCTION_SETUP.md). Skapa inte ett nytt projekt och kör inte redan installerade migrationer igen.
+Produktionsprojektet `jarvis` finns redan och de ursprungliga fyra migrationerna är installerade; steg 3 lägger till en migration. Se [exakta produktionsinställningar och återstående aktivering](docs/PRODUCTION_SETUP.md). Skapa inte ett nytt projekt och kör inte redan installerade migrationer igen.
 
 1. För en separat, tom utvecklingsdatabas: kör SQL-filerna i `supabase/migrations/` i filnamnsordning, alternativt använd Supabase CLI migrationshantering. Produktionsdatabasens versionsnummer matchar filnamnen.
 2. Ange `NEXT_PUBLIC_SUPABASE_URL` och `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` i `.env.local`. Äldre anon key fungerar också som publishable key.
@@ -24,7 +24,7 @@ Produktionsprojektet `jarvis` finns redan och de fyra migrationerna är installe
 4. Starta om appen, öppna Settings, skapa konto och bekräfta e-post. E-postbekräftelse ska förbli aktiverad. För publik drift: konfigurera egen SMTP och Supabase Auths rate limits/bot-skydd enligt er policy.
 5. Inloggade användare börjar med en **tom, privat arbetsyta**. Skapa agent, signal, möjlighet eller lead med sidornas formulär.
 
-Ingen service-role-nyckel behövs. Servern använder användarens autentiserade session; RLS isolerar tabeller och privata filer. Hemligheter ska inte läggas i UI, Git eller variabler med prefixet `NEXT_PUBLIC_`.
+Vanliga manuella funktioner behöver ingen servernyckel. Den frivilliga schemaläggaren och Gmail-integrationen behöver `SUPABASE_SECRET_KEY` endast på servern; se [steg 3](docs/PHASE3.md). Övriga anrop använder användarens autentiserade session; RLS isolerar tabeller och privata filer. Hemligheter ska inte läggas i UI, Git eller variabler med prefixet `NEXT_PUBLIC_`.
 
 ## Arkitektur
 
@@ -48,15 +48,19 @@ Rapporter skiljer verifierade ordagranna källcitat från uppskattningar och hyp
 
 Den nya motorn har en förhandsreserverad API-budget ($1.20–$2.00/analys), en låst modell/prisram, begränsade steg och tidsgränser. Befintliga enstaka anpassade agentkörningar nedan bevaras separat med sin äldre riktbudget.
 
-Lägg till `OPENAI_API_KEY` på servern. Det kompletta analysflödet kräver `OPENAI_MODEL=gpt-4.1-mini` för sin prisram; välj denna modell även för befintlig chatt och enstaka agentkörningar. Kontrollera modellbehörighet i ert OpenAI-projekt.
+Produktionsnyckeln `OPENAI_API_KEY` läggs enbart på servern. Det kompletta analysflödet kräver `OPENAI_MODEL=gpt-4.1-mini` för sin prisram; välj denna modell även för befintlig chatt och enstaka agentkörningar. Kontrollera modellbehörighet i ert OpenAI-projekt.
 
 Skapa en agent med typ research, opportunity eller sales, aktivera den och välj Kör agent. Agents SDK genomför ett avgränsat uppdrag med ett modellsvar och högst tre inbyggda webbsökningsanrop. Rapporten valideras och sparar högst tre poster av varje typ i en atomisk transaktion. Körhistorik visar tokens, resultat eller fel. Övergivna körningar markeras som misslyckade vid nästa start efter två minuter.
 
 Ask Jarvis använder Responses API med de senaste 12 chattmeddelandena och avgränsad arbetsytedata. Chatten ger råd och ändrar inte data; research startas uttryckligen från AI Agents eller chattens agentväljare. Fråga och svar sparas tillsammans först efter lyckad generering.
 
-Alla AI-anrop kräver verifierad användarsession och begränsas atomiskt i PostgreSQL till 10 per användare/timme. Modelltid begränsas till 50 sekunder, klienten gör inga automatiska omförsök och endast en agentkörning per användare tillåts samtidigt. API-nycklar, e-post och kontaktpersoner tas inte med i arbetsytekontexten. Uppdrag, senaste chatt och avgränsad affärsdata skickas till OpenAI. Responses-lagring och SDK-spårning är avstängda i koden; leverantörens egna datahanteringsvillkor gäller fortfarande.
+Manuella AI-anrop kräver verifierad användarsession och begränsas atomiskt i PostgreSQL till 10 per användare/timme. Schemalagda uppdrag kräver säker worker-autentisering och uttryckligen aktiverade scheman. Alla AI-funktioner delar de nya dags- och månadsbudgetarna. Modelltid begränsas till 50 sekunder, klienten gör inga automatiska omförsök och endast en agentkörning per användare tillåts samtidigt. API-nycklar, e-post och kontaktpersoner tas inte med i arbetsytekontexten. Uppdrag, senaste chatt och avgränsad affärsdata skickas till OpenAI. Responses-lagring och SDK-spårning är avstängda i koden; leverantörens egna datahanteringsvillkor gäller fortfarande.
 
-Tokenbudgeten styr maximal svarslängd och är en **riktbudget, inget hårt kostnadstak**. Indata och webbsökning kan tillföra kostnad. Använd OpenAI-projektets egna användningskontroller för organisatoriska kostnadsgränser. Inga mejl, köp eller investeringar kan utföras av agenterna.
+Tokenbudgeten styr maximal svarslängd och är en **riktbudget, inget hårt kostnadstak**. Indata och webbsökning kan tillföra kostnad. Använd OpenAI-projektets egna användningskontroller för organisatoriska kostnadsgränser. Agenterna kan inte skicka mejl, köpa eller investera. Den separata Gmail-integrationen kräver exakt innehållsgodkännande och ett manuellt sändningsklick.
+
+## Steg 3
+
+Schemalagda skanningar, källåteranvändning, dubblettkontroll, dagliga sammanfattningar, CRM-uppföljning, säljutkast, faktiska utfall, mätbar feedback och Gmail OAuth är implementerade. Se [exakta aktiveringssteg och begränsningar](docs/PHASE3.md). Ingen automatisk sändning eller ekonomisk transaktion är möjlig. Dashboardens registrerade kassaflöde räknas separat från vunna CRM-affärers värde.
 
 ## Privat fillagring
 
@@ -71,7 +75,7 @@ Det befintliga projektet `jarvis-ai-platform` är kopplat till `Fante18/jarvis`.
 3. Sätt `APP_URL` till den exakta produktionsadressen (utan avslutande `/`) och lägg till motsvarande `/auth/callback` i Supabase.
 4. Publicera. Kontrollera inloggning med två separata användare, filisolering och ett begränsat AI-uppdrag innan extern lansering.
 
-Inga schemalagda körningar är aktiva. Ingen cron-konfiguration eller säkerhetskritisk projektinställning ändras automatiskt.
+Vercel Cron kontrollerar aktiverade scheman en gång per dag. Bakgrundskörningar är avstängda tills serverkonfigurationen är klar och användaren väljer frekvens och budget. Befintligt åtkomstskydd, Auth och säkerhetskritiska projektinställningar ändras inte.
 
 ## Riktigt tjänstetest
 

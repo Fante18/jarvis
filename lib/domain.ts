@@ -51,6 +51,13 @@ export const entitySchemas = {
       value: z.number().min(0).max(1e12),
       stage: z.enum(["new", "contacted", "proposal", "won", "lost"]),
       notes: long,
+      opportunity_id: z.string().uuid().nullable().default(null),
+      next_action_at: z.string().datetime().nullable().default(null),
+      lawful_basis: z
+        .enum(["unknown", "consent", "legitimate_interest"])
+        .default("unknown"),
+      consent_record: z.string().trim().max(1500).default(""),
+      do_not_contact: z.boolean().default(false),
     })
     .strict(),
   approvals: z
@@ -68,9 +75,12 @@ export type Entity = keyof typeof entitySchemas;
 export type BaseRow = { id: string; created_at: string; updated_at?: string };
 export type Agent = z.infer<typeof entitySchemas.agents> & BaseRow;
 export type Opportunity = z.infer<typeof entitySchemas.opportunities> &
-  BaseRow & { origin_analysis_id?: string | null };
+  BaseRow & {
+    origin_analysis_id?: string | null;
+    verified_evidence_count?: number;
+  };
 export type Signal = z.infer<typeof entitySchemas.signals> & BaseRow;
-export type Lead = z.infer<typeof entitySchemas.leads> & BaseRow;
+export type Lead = z.input<typeof entitySchemas.leads> & BaseRow;
 export type Approval = Omit<z.infer<typeof entitySchemas.approvals>, "status"> &
   BaseRow & {
     status: "pending" | "approved" | "rejected";

@@ -1,3 +1,44 @@
+# Steg 3 — verifiering 2026-10-18
+
+## Genomfört
+
+- Schemalagda marknadsskanningar (dagligen/veckovis), central paus, atomisk gemensam dags-/månadsbudget, cache av offentlig research och dubblettmatchning av möjligheter.
+- Sparade dagliga sammanfattningar, aktiva körningar på dashboard, CRM-koppling från möjlighet till research-lead, uppföljningar, säljförslag, låsta godkännanden och separat manuell Gmail-sändning.
+- Heltalsbaserade registrerade betalningar/återbetalningar/kostnader, historik med makulering, kassaflöde från händelsedatum och oföränderliga testutfall med stickprov, unika referenser och begränsad prioriteringsjustering.
+- Gmail OAuth-kod använder PKCE, användarbundet state, HttpOnly-cookie, AES-256-GCM och bara nödvändig sändbehörighet. Ingen verklig OAuth-anslutning eller sändning gjordes.
+
+## Kontroller som passerar
+
+**69 automatiska tester**, **17 webbläsartester**, TypeScript och Next.js-produktionsbygge. Browserkontroller kördes mot en separat färsk produktionsserver på port 3013 med återanvändning av server avstängd.
+
+PostgreSQL/PGlite kör alla fem riktiga migrationsfiler och verifierar ägarisolering, gemensam budget före AI-anrop, kvarhållna osäkra reservationer över periodskiften, schemaläggarens åtkomst och paus, betalda utfall separat från vunna affärsvärden, dubblettskydd för betalningar/tester och låst godkännandesnapshot. Hela schemalagda Scout–Jarvis-kedjan körs två gånger genom riktiga Agents SDK och PostgreSQL med simulerade OpenAI-HTTP-svar. Resultatet är en möjlighet och två kompletta analyser med bevarad historik. Ett saknat service-role SELECT-grant för befintlig agent_runs-kontroll upptäcktes och rättades i detta test.
+
+Sales-provet kör riktiga OpenAI SDK mot simulerat HTTP-svar och bekräftar kompatibelt utdataformat, reservation före anrop, avsaknad av externa verktyg, budgetstopp utan modellförfrågan och ingen automatisk retry vid osäkert fel. OAuth-tester avvisar manipulerat state, fel användare och utgången callback innan tokenutbyte; kryptering och MIME-injektion kontrolleras. UI-proven sparar schema, ekonomiskt utfall och osänt säljutkast, testar budget-/integrationsspärrar samt mobilbredd.
+
+## Riktig databas och bevarad grund
+
+`20261018155013_automation_and_crm.sql` är installerad i befintligt Supabase-projekt `yqzdkzwwqanwzeslmxtd`. Namnet matchar verklig remote-version. Alla **23 tabeller** har RLS. Katalogkontrollen visar: anon/authenticated saknar SELECT på mejltokens; anon saknar budget- och worker-RPC; authenticated saknar worker-kö, sändningsclaim och direkt INSERT i audit-loggen. Service-rollen har avsedd worker-åtkomst.
+
+Före och efter migrationen: **1 slutförd riktig analys, 34 sparade källor och 1 möjlighet**. Inga test-leads, påhittade betalningar eller testanalyser skapades i produktionsdatabasen. Tidigare analysers sparade kostnad/reservation importerades till budgethistoriken. **0 scheman och 0 aktiverade automatiseringar**. Ursprunglig kodbackup `/workspace/jarvis-source.zip` har oförändrad SHA256 `51ee6147163c6fc81d2ca7af1b62f37b1e3ea5ab21af038a8e862ae3a9463559`.
+
+Den första riktiga analysen slutfördes före steg 3 med användarens produktionssession: sju steg, beräknat $0.060721 och kvarvarande osäker reservation $0.50 från det tidigare felet. De 18 påståendena är inte markerade som verifierade. Detta bevisar en fungerande riktig grundkedja, inte validerad efterfrågan eller intäkt.
+
+## Aktivering och återstående livekontroller
+
+Vercel Production innehåller OpenAI-nyckel, publik Supabase-konfiguration, APP_URL och gpt-4.1-mini. Vid kontrollen saknas **SUPABASE_SECRET_KEY och CRON_SECRET** samt de frivilliga Gmail-variablerna. Nycklar har inte lästs eller skrivits ut. Schemaläggningen kan därför inte aktiveras ännu. Exakta manuella steg finns i [PHASE3.md](docs/PHASE3.md).
+
+Innan verklig automatisering: lägg servervariabler i samma Vercel-projekt, publicera om, välj frekvens/budget och aktivera själv. Verifiera en faktisk cron-körning, kostnadsbokning och sammanfattning med den riktiga inloggningen. Gmail behöver Google OAuth-konfiguration, anslutning och ett konkret godkänt provmeddelande. Inga mejl, köp eller betalningar utfördes i denna utvecklingsomgång.
+
+Vercels befintliga Deployment Protection och Supabase Auth har inte ändrats. Extern automatiserad produktionswebbläsare och runtime-loggar har tidigare nekats med HTTP 403; lokal browserkontroll och Vercel READY är inte samma sak som verifierad produktionsinloggning efter denna ändring.
+
+## Security Advisor
+
+Efter migrationen: inga nya anonyma SECURITY DEFINER-anrop. Informationsrad om email_connections utan policies är avsiktlig deny-by-default. Inloggades två nya budget-RPC är avsiktliga och ägarskaps-/beloppskontrollerade; interna definers har inga klientgrants. Befintliga varningar om plattformsfunktionen rls_auto_enable, reserve_ai_request och avstängt skydd mot läckta lösenord kvarstår. Inga säkerhetskritiska projektinställningar ändras automatiskt. Se [granskningen och åtgärdslänkarna](docs/PRODUCTION_SETUP.md#granskning-av-säkerhetsråd).
+
+---
+
+Nedanstående är historiska verifieringar. Aktuell status står ovan.
+
 # Scout-felsökning — 2026-10-18
 
 Den första riktiga analysen startade men misslyckades efter ett försök, med noll färdiga steg. Databasen innehåller en reservation på $0.50 och ingen rapporterad tokenkostnad. Reservationen är inte en bekräftad debitering. Det ursprungliga API-felet sparades tyvärr som ett generellt meddelande; Vercels runtime-loggar nekas med HTTP 403 och CLI saknar autentisering. Därför är det exakta ursprungliga leverantörsfelet inte bekräftat.

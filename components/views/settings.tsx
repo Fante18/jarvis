@@ -1,4 +1,5 @@
 "use client";
+import AutomationSettings from "../operations/settings";
 import { api, type WorkspaceState } from "@/lib/use-workspace";
 import {
   Check,
@@ -52,6 +53,7 @@ export default function SettingsPanel({ state }: { state: WorkspaceState }) {
   }
   return (
     <div className="settings-grid">
+      <AutomationSettings state={state} />
       <section className="panel settings-card">
         <div className="settings-heading">
           <div className="settings-icon">
@@ -250,13 +252,13 @@ export default function SettingsPanel({ state }: { state: WorkspaceState }) {
               filnamnsordning. Kör inte redan installerade migrationer igen.
             </li>
             <li>
-              Ange projektets URL och publishable key i Vercels
-              miljövariabler för Production. Vid lokal utveckling används{" "}
+              Ange projektets URL och publishable key i Vercels miljövariabler
+              för Production. Vid lokal utveckling används{" "}
               <code>.env.local</code> med <code>.env.example</code> som mall.
             </li>
             <li>
-              Lägg till <code>OPENAI_API_KEY</code> som Secret i Vercel och
-              sätt <code>OPENAI_MODEL=gpt-4.1-mini</code>. Lägg aldrig hemliga
+              Lägg till <code>OPENAI_API_KEY</code> som Secret i Vercel och sätt{" "}
+              <code>OPENAI_MODEL=gpt-4.1-mini</code>. Lägg aldrig hemliga
               nycklar i klientkod eller i chatten.
             </li>
             <li>
@@ -264,8 +266,8 @@ export default function SettingsPanel({ state }: { state: WorkspaceState }) {
               <code>/auth/callback</code> som tillåten redirect i Supabase.
             </li>
             <li>
-              Publicera om efter ändrade miljövariabler. Skapa konto,
-              bekräfta din e-post i samma webbläsare och logga in.
+              Publicera om efter ändrade miljövariabler. Skapa konto, bekräfta
+              din e-post i samma webbläsare och logga in.
             </li>
           </ol>
           <div className="env-list">
@@ -304,7 +306,9 @@ export default function SettingsPanel({ state }: { state: WorkspaceState }) {
           </div>
           <div>
             <Check size={16} />
-            <span>Analysflöden startas manuellt med ett tydligt uppdrag.</span>
+            <span>
+              Analyser startas manuellt eller via scheman som du aktiverat.
+            </span>
           </div>
           <div>
             <Check size={16} />
@@ -323,7 +327,10 @@ export default function SettingsPanel({ state }: { state: WorkspaceState }) {
           </div>
           <div>
             <Pause size={16} />
-            <span>Schemalagda körningar är inte aktiverade.</span>
+            <span>
+              Schemalagda körningar styrs av din centrala paus och dina
+              budgetgränser.
+            </span>
           </div>
         </div>
         <p className="help-note">

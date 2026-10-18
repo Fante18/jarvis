@@ -1,4 +1,5 @@
 "use client";
+import OperationsOverview from "../operations/overview";
 import { money } from "@/lib/domain";
 import {
   ArrowRight,
@@ -32,6 +33,7 @@ export default function DashboardView({
   const { data, mode } = state;
   return (
     <>
+      <OperationsOverview state={state} />
       <section className="welcome-card">
         <div className="welcome-copy">
           <span className="eyebrow">
@@ -86,7 +88,7 @@ export default function DashboardView({
             accent: "blue",
           },
           {
-            label: "Agenter redo",
+            label: "Egna agenter redo",
             value: `${stats.activeAgents.toString().padStart(2, "0")} / ${data.agents.length.toString().padStart(2, "0")}`,
             icon: Bot,
             foot: `${data.agent_runs.filter((r) => r.status === "running").length} körningar pågår`,

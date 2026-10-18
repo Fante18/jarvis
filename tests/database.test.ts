@@ -8,7 +8,7 @@ import type { AnalysisJob } from "../lib/analysis/contracts";
 import { sdkTransport } from "./helpers/analysis-transport";
 import { sources, fixtureJob, fixtureOutput } from "./fixtures/analysis";
 import { PGlite } from "@electric-sql/pglite";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 let db: PGlite;
 const alice = "10000000-0000-4000-8000-000000000001",
@@ -18,15 +18,18 @@ const aliceAgent = "20000000-0000-4000-8000-000000000001",
 async function asUser(id: string) {
   await db.exec("reset role");
   await db.query("select set_config('request.jwt.claim.sub',$1,false)", [id]);
+  await db.query("select set_config('request.jwt.claims',$1,false)", [
+    JSON.stringify({ role: "authenticated", sub: id }),
+  ]);
   await db.exec("set role authenticated");
 }
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(`
-create role authenticated; create role anon; create schema auth; create schema storage;
+create role authenticated; create role anon; create role service_role bypassrls; create schema auth; create schema storage;
 create table auth.users(id uuid primary key);
 create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
-grant usage on schema auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;
+grant usage on schema auth to authenticated,anon,service_role; grant execute on function auth.uid() to authenticated,anon;
 create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
 create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text);
 alter table storage.objects enable row level security;
@@ -34,12 +37,9 @@ create function storage.foldername(text) returns text[] language sql immutable a
 grant usage on schema storage to authenticated; grant select,insert,delete on storage.objects to authenticated;
 insert into auth.users values('${alice}'),('${bob}');
 `);
-  for (const file of [
-    "20261018124548_foundation.sql",
-    "20261018124550_hardening.sql",
-    "20261018124551_ai_workflows.sql",
-    "20261018124552_analysis_pipeline.sql",
-  ]) {
+  for (const file of readdirSync("supabase/migrations")
+    .filter((f) => f.endsWith(".sql"))
+    .sort()) {
     await db.exec(
       readFileSync(`supabase/migrations/${file}`, "utf8").replace(
         "create extension if not exists pgcrypto;",
@@ -522,4 +522,538 @@ describe("PostgreSQL row isolation and constraints", () => {
       1,
     );
   });
+});
+
+async function newOwner() {
+  await db.exec("reset role");
+  const id = crypto.randomUUID();
+  await db.query("insert into auth.users(id) values($1)", [id]);
+  await asUser(id);
+  return id;
+}
+async function asWorker() {
+  await db.exec("reset role");
+  await db.query(
+    "select set_config('request.jwt.claim.sub','',false),set_config('request.jwt.claims','{\"role\":\"service_role\"}',false)",
+  );
+  await db.exec("set role service_role");
+}
+async function createOpportunity(owner: string, title = "Test opportunity") {
+  return (
+    await db.query<{ id: string }>(
+      "insert into public.opportunities(user_id,title,sector,score) values($1,$2,'test',40) returning id",
+      [owner, title],
+    )
+  ).rows[0].id;
+}
+describe("phase 3 isolation, budgets, approvals and measured outcomes", () => {
+  it("reserves a full planned analysis before any AI call and serializes shared budget across features", async () => {
+    const owner = await newOwner();
+    await db.query(
+      "insert into public.automation_controls(user_id,daily_limit_cents,monthly_limit_cents) values($1,200,1000)",
+      [owner],
+    );
+    const id = (
+      await db.query<{ id: string }>(
+        "insert into public.analysis_jobs(user_id,topic,budget_cents) values($1,'Budget test for market scanning',150) returning id",
+        [owner],
+      )
+    ).rows[0].id;
+    expect(
+      Number(
+        (
+          await db.query<{ n: number }>(
+            "select public.budget_usage($1,date_trunc('day',now())) as n",
+            [owner],
+          )
+        ).rows[0].n,
+      ),
+    ).toBe(1500000);
+    await expect(
+      db.query("select public.reserve_ai_cost(600000,'chat')"),
+    ).rejects.toThrow(/JARVIS_BUDGET_LIMIT/);
+    await expect(
+      db.query("select public.book_ai_cost($1,gen_random_uuid(),1,'chat')", [
+        owner,
+      ]),
+    ).rejects.toThrow(/permission denied/);
+    await db.query(
+      "update public.analysis_jobs set status='failed',reserved_microusd=500000 where id=$1",
+      [id],
+    );
+    await db.exec("reset role");
+    await db.query(
+      "update public.ai_costs set created_at=now()-interval '90 days' where id=$1",
+      [id],
+    );
+    await asUser(owner);
+    expect(
+      Number(
+        (
+          await db.query<{ n: number }>(
+            "select public.budget_usage($1,date_trunc('day',now())) as n",
+            [owner],
+          )
+        ).rows[0].n,
+      ),
+    ).toBe(500000);
+    await expect(
+      db.query("select public.reserve_ai_cost(1500001,'proposal')"),
+    ).rejects.toThrow(/JARVIS_BUDGET_LIMIT/);
+    const booking = (
+      await db.query<{ id: string }>(
+        "select public.reserve_ai_cost(100000,'proposal') as id",
+      )
+    ).rows[0].id;
+    await db.query("select public.settle_ai_cost($1,5000)", [booking]);
+    await expect(
+      db.query("select public.settle_ai_cost($1,0)", [booking]),
+    ).rejects.toThrow(/Invalid settlement/);
+  });
+  it("queues enabled schedules only once, blocks a forged worker and honors the global pause", async () => {
+    const owner = await newOwner();
+    await db.query(
+      "insert into public.automation_controls(user_id,enabled) values($1,true)",
+      [owner],
+    );
+    const schedule = (
+      await db.query<{ id: string }>(
+        "insert into public.scan_schedules(user_id,name,topic,interval_days,budget_cents,enabled) values($1,'Weekly','Public workflow market signals',7,150,true) returning id",
+        [owner],
+      )
+    ).rows[0].id;
+    await expect(db.query("select public.queue_due_scans()")).rejects.toThrow(
+      /permission denied/,
+    );
+    await asWorker();
+    const jobs = (
+      await db.query<{ jobs: { id: string; user_id: string }[] }>(
+        "select public.queue_due_scans() as jobs",
+      )
+    ).rows[0].jobs;
+    expect(jobs.filter((j) => j.user_id === owner)).toHaveLength(1);
+    const job = jobs.find((j) => j.user_id === owner)!;
+    expect(
+      (
+        await db.query<{ jobs: unknown[] }>(
+          "select public.queue_due_scans() as jobs",
+        )
+      ).rows[0].jobs.filter(
+        (j) => (j as { user_id: string }).user_id === owner,
+      ),
+    ).toHaveLength(0);
+    await asUser(owner);
+    expect(
+      (
+        await db.query<{ n: number }>(
+          "select (extract(epoch from (next_run_at-last_run_at))/86400)::integer as n from public.scan_schedules where id=$1",
+          [schedule],
+        )
+      ).rows[0].n,
+    ).toBe(7);
+    await db.query(
+      "update public.automation_controls set enabled=false where user_id=$1",
+      [owner],
+    );
+    expect(
+      (
+        await db.query<{ cancel_requested: boolean }>(
+          "select cancel_requested from public.analysis_jobs where id=$1",
+          [job.id],
+        )
+      ).rows[0].cancel_requested,
+    ).toBe(true);
+    await asWorker();
+    expect(
+      (
+        await db.query<{ j: unknown }>(
+          "select public.claim_analysis($1,gen_random_uuid()) as j",
+          [job.id],
+        )
+      ).rows[0].j,
+    ).toBeNull();
+  });
+  it("keeps actual cash distinct from won deals, prevents duplicates, preserves corrections and isolates totals", async () => {
+    const owner = await newOwner(),
+      opp = await createOpportunity(owner);
+    const lead = (
+      await db.query<{ id: string }>(
+        "insert into public.leads(user_id,name,company,value,stage,opportunity_id) values($1,'Person','Company',90000,'won',$2) returning id",
+        [owner, opp],
+      )
+    ).rows[0].id;
+    expect(
+      (
+        await db.query<{ t: { receipts_cents: number } }>(
+          "select public.cash_totals() t",
+        )
+      ).rows[0].t.receipts_cents,
+    ).toBe(0);
+    const id = crypto.randomUUID();
+    await db.query(
+      "insert into public.cash_entries(id,user_id,lead_id,kind,amount_cents,occurred_on,reference) values($1,$2,$3,'receipt',125000,current_date,'INV-100')",
+      [id, owner, lead],
+    );
+    await expect(
+      db.query(
+        "insert into public.cash_entries(id,user_id,kind,amount_cents,occurred_on,reference) values($1,$2,'receipt',125000,current_date,'INV-100')",
+        [crypto.randomUUID(), owner],
+      ),
+    ).rejects.toThrow(/duplicate key/);
+    await expect(
+      db.query(
+        "update public.cash_entries set amount_cents=900000 where id=$1",
+        [id],
+      ),
+    ).rejects.toThrow(/immutable/);
+    expect(
+      (
+        await db.query<{ t: { receipts_cents: number } }>(
+          "select public.cash_totals() t",
+        )
+      ).rows[0].t.receipts_cents,
+    ).toBe(125000);
+    await asUser(bob);
+    expect(
+      (await db.query("select * from public.cash_entries where id=$1", [id]))
+        .rows,
+    ).toHaveLength(0);
+    expect(
+      (
+        await db.query<{ t: { receipts_cents: number } }>(
+          "select public.cash_totals() t",
+        )
+      ).rows[0].t.receipts_cents,
+    ).toBe(0);
+    await asUser(owner);
+    await db.query("delete from public.leads where id=$1", [lead]);
+    expect(
+      (
+        await db.query<{ lead_id: string | null }>(
+          "select lead_id from public.cash_entries where id=$1",
+          [id],
+        )
+      ).rows[0].lead_id,
+    ).toBeNull();
+    await db.query(
+      "update public.cash_entries set voided_at=now() where id=$1",
+      [id],
+    );
+    expect(
+      (
+        await db.query<{ t: { receipts_cents: number } }>(
+          "select public.cash_totals() t",
+        )
+      ).rows[0].t.receipts_cents,
+    ).toBe(0);
+    expect(
+      (await db.query("select * from public.cash_entries where id=$1", [id]))
+        .rows,
+    ).toHaveLength(1);
+  });
+  it("creates a research lead without inventing a customer, email or deal value and deduplicates conversions", async () => {
+    const owner = await newOwner(),
+      opp = await createOpportunity(owner);
+    const a = (
+      await db.query<{ id: string }>(
+        "select public.opportunity_to_lead($1) id",
+        [opp],
+      )
+    ).rows[0].id;
+    expect(
+      (
+        await db.query<{ id: string }>(
+          "select public.opportunity_to_lead($1) id",
+          [opp],
+        )
+      ).rows[0].id,
+    ).toBe(a);
+    const lead = (
+      await db.query<{ name: string; email: string; value: string }>(
+        "select name,email,value from public.leads where id=$1",
+        [a],
+      )
+    ).rows[0];
+    expect(lead.name).toBe("Ej identifierad");
+    expect(lead.email).toBe("");
+    expect(Number(lead.value)).toBe(0);
+    await asUser(bob);
+    expect(
+      (
+        await db.query<{ id: null }>(
+          "select public.opportunity_to_lead($1) id",
+          [opp],
+        )
+      ).rows[0].id,
+    ).toBeNull();
+  });
+  it("requires the exact reviewed snapshot, real consent and a one-time server claim before an email send", async () => {
+    const owner = await newOwner();
+    const lead = (
+      await db.query<{ id: string }>(
+        "insert into public.leads(user_id,name,company,email) values($1,'Real person','Company','recipient@example.com') returning id",
+        [owner],
+      )
+    ).rows[0].id;
+    const draft = (
+      await db.query<{ id: string }>(
+        "insert into public.sales_drafts(user_id,lead_id,subject,body,recipient,content_hash) values($1,$2,'Pilot offer','Specific narrow pilot offer for review','recipient@example.com','test-hash') returning id",
+        [owner, lead],
+      )
+    ).rows[0].id;
+    await expect(
+      db.query("update public.sales_drafts set status='approved' where id=$1", [
+        draft,
+      ]),
+    ).rejects.toThrow(/draft state transition|approval required/i);
+    const approval = (
+      await db.query<{ id: string }>(
+        "select public.submit_sales_draft($1) id",
+        [draft],
+      )
+    ).rows[0].id;
+    await expect(
+      db.query(
+        "update public.sales_drafts set body='Unreviewed different body' where id=$1",
+        [draft],
+      ),
+    ).rejects.toThrow(/new draft/);
+    await db.query(
+      "update public.approvals set status='approved',decided_at=now() where id=$1",
+      [approval],
+    );
+    expect(
+      (
+        await db.query<{ status: string }>(
+          "select status from public.sales_drafts where id=$1",
+          [draft],
+        )
+      ).rows[0].status,
+    ).toBe("approved");
+    await asWorker();
+    await expect(
+      db.query("select public.claim_sales_send($1,$2)", [draft, owner]),
+    ).rejects.toThrow(/consent/);
+    await asUser(owner);
+    await db.query(
+      "update public.leads set lawful_basis='consent',consent_record='Consent recorded from actual opt-in form' where id=$1",
+      [lead],
+    );
+    await expect(
+      db.query("select public.claim_sales_send($1,$2)", [draft, owner]),
+    ).rejects.toThrow(/permission denied/);
+    await asWorker();
+    expect(
+      (
+        await db.query<{ d: { id: string } }>(
+          "select public.claim_sales_send($1,$2) d",
+          [draft, owner],
+        )
+      ).rows[0].d.id,
+    ).toBe(draft);
+    expect(
+      (
+        await db.query<{ d: unknown }>(
+          "select public.claim_sales_send($1,$2) d",
+          [draft, owner],
+        )
+      ).rows[0].d,
+    ).toBeNull();
+    await asUser(owner);
+    await expect(
+      db.query("update public.sales_drafts set status='draft' where id=$1", [
+        draft,
+      ]),
+    ).rejects.toThrow(/immutable|state transition/);
+  });
+  it("makes token storage server-only and audit/feedback append-only without leaking contact bodies", async () => {
+    const owner = await newOwner(),
+      opp = await createOpportunity(owner);
+    await db.query(
+      "insert into public.outcome_feedback(user_id,opportunity_id,test_reference,sample_size,positive_results,assumption,result,verdict,observed_at) values($1,$2,'pilot-test-1',5,0,'Willingness to pay test','Zero out of five accepted the real paid pilot','refuted',now())",
+      [owner, opp],
+    );
+    await expect(
+      db.query(
+        "update public.outcome_feedback set verdict='supported' where opportunity_id=$1",
+        [opp],
+      ),
+    ).rejects.toThrow(/permission denied/);
+    await expect(
+      db.query("select encrypted_tokens from public.email_connections"),
+    ).rejects.toThrow(/permission denied/);
+    await expect(
+      db.query(
+        "insert into public.audit_events(user_id,entity,record_id,action) values($1,'forged','forged','FAKE')",
+        [owner],
+      ),
+    ).rejects.toThrow(/permission denied/);
+    const audit = (
+      await db.query(
+        "select * from public.audit_events where entity='outcome_feedback'",
+      )
+    ).rows;
+    expect(audit).toHaveLength(1);
+    expect(JSON.stringify(audit)).not.toContain("Zero out of five");
+    await asUser(bob);
+    expect(
+      (
+        await db.query(
+          "select * from public.outcome_feedback where opportunity_id=$1",
+          [opp],
+        )
+      ).rows,
+    ).toHaveLength(0);
+  });
+});
+function sqlAnalysisStore(id: string): AnalysisStore {
+  const token = crypto.randomUUID();
+  const query: typeof db.query = async (
+    ...args: Parameters<typeof db.query>
+  ) => {
+    try {
+      return await db.query(...args);
+    } catch (e) {
+      console.error("Test SQL boundary:", (e as Error).message);
+      throw e;
+    }
+  };
+  return {
+    async claim() {
+      return (
+        await query<{ job: AnalysisJob }>(
+          "select public.claim_analysis($1,$2) job",
+          [id, token],
+        )
+      ).rows[0].job;
+    },
+    async reserve(_id, role, b) {
+      await query(
+        "update public.analysis_jobs set active_role=$1,spent_microusd=$2,reserved_microusd=$3,attempted_calls=$4 where id=$5",
+        [role, b.spent, b.reserved, b.calls, id],
+      );
+    },
+    async checkpoint(_id, pos, result, b) {
+      await query("select public.checkpoint_analysis($1,$2,$3,$4,$5,$6)", [
+        id,
+        token,
+        pos,
+        JSON.stringify(result),
+        b.spent,
+        b.reserved,
+      ]);
+    },
+    async cancelled() {
+      return (
+        await query<{ c: boolean }>(
+          "select cancel_requested c from public.analysis_jobs where id=$1",
+          [id],
+        )
+      ).rows[0].c;
+    },
+    async complete(_id, report, b) {
+      await query("select public.finish_analysis($1,$2,$3,$4,$5)", [
+        id,
+        token,
+        JSON.stringify(report),
+        b.spent,
+        b.reserved,
+      ]);
+    },
+    async fail(_id, status, error, b) {
+      await query(
+        "update public.analysis_jobs set status=$1,error=$2,spent_microusd=$3,reserved_microusd=$4 where id=$5",
+        [status, error, b.spent, b.reserved, id],
+      );
+    },
+  };
+}
+it("executes scheduled Scout → Jarvis as the scoped worker and merges a repeated business into its existing opportunity", async () => {
+  const owner = await newOwner();
+  await db.query(
+    "insert into public.automation_controls(user_id,enabled) values($1,true)",
+    [owner],
+  );
+  const schedule = (
+    await db.query<{ id: string }>(
+      "insert into public.scan_schedules(user_id,name,topic,interval_days,budget_cents,enabled) values($1,'Daily','Accounting workflow opportunities',1,150,true) returning id",
+      [owner],
+    )
+  ).rows[0].id;
+  vi.stubEnv("OPENAI_API_KEY", "test-key-not-real");
+  const transport = sdkTransport();
+  try {
+    let previous: string | null = null;
+    for (let i = 0; i < 2; i++) {
+      await asWorker();
+      const queued = (
+        await db.query<{ jobs: { id: string; user_id: string }[] }>(
+          "select public.queue_due_scans() jobs",
+        )
+      ).rows[0].jobs;
+      const job = queued.find((j) => j.user_id === owner)!;
+      expect(job).toBeTruthy();
+      await executeAnalysis(job.id, {
+        store: sqlAnalysisStore(job.id),
+        loadSignals: async () => sources,
+      });
+      const result = (
+        await db.query<{
+          status: string;
+          error: string | null;
+          opportunity_id: string;
+        }>(
+          "select status,error,opportunity_id from public.analysis_jobs where id=$1",
+          [job.id],
+        )
+      ).rows[0];
+      expect(result.error).toBeNull();
+      expect(result.status).toBe("completed");
+      if (previous) expect(result.opportunity_id).toBe(previous);
+      previous = result.opportunity_id;
+      await asUser(owner);
+      await db.query(
+        "update public.scan_schedules set next_run_at=now()-interval '1 day' where id=$1",
+        [schedule],
+      );
+    }
+    expect(transport.calls).toHaveLength(14);
+    expect(
+      (
+        await db.query("select * from public.opportunities where user_id=$1", [
+          owner,
+        ])
+      ).rows,
+    ).toHaveLength(1);
+    expect(
+      (
+        await db.query(
+          "select * from public.analysis_jobs where user_id=$1 and status='completed'",
+          [owner],
+        )
+      ).rows,
+    ).toHaveLength(2);
+    const usage = (
+      await db.query<{ reserved_microusd: number; state: string }>(
+        "select reserved_microusd,state from public.ai_costs where user_id=$1",
+        [owner],
+      )
+    ).rows;
+    expect(
+      usage.every((r) => r.state === "settled" && r.reserved_microusd === 0),
+    ).toBe(true);
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
+});
+it("rejects duplicate measured tests and cross-owner outcome references", async () => {
+  const owner = await newOwner(),
+    opp = await createOpportunity(owner);
+  const query =
+    "insert into public.outcome_feedback(user_id,opportunity_id,test_reference,sample_size,positive_results,assumption,result,verdict,observed_at) values($1,$2,'Pilot-unique-1',5,1,'A specific price test','One of five accepted the pilot','inconclusive',now())";
+  await db.query(query, [owner, opp]);
+  await expect(db.query(query, [owner, opp])).rejects.toThrow(/duplicate key/);
+  await asUser(bob);
+  await expect(db.query(query, [bob, opp])).rejects.toThrow(/owner mismatch/);
 });

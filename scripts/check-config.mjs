@@ -7,7 +7,9 @@ function check(name, validate, optional = false) {
     console.log(`${optional ? "STANDARD" : "SAKNAS"}: ${name}`);
     if (!optional) failures++;
   } else if (!validate(value)) {
-    console.log(`OGILTIG: ${name} — kontrollera typ och format i konfigurationsguiden.`);
+    console.log(
+      `OGILTIG: ${name} — kontrollera typ och format i konfigurationsguiden.`,
+    );
     failures++;
   } else {
     console.log(`OK: ${name}`);
@@ -16,40 +18,75 @@ function check(name, validate, optional = false) {
 function validOrigin(value) {
   try {
     const url = new URL(value);
-    return !url.username && !url.password && url.origin === value &&
-      (url.protocol === "https:" || (url.protocol === "http:" &&
-        ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)));
+    return (
+      !url.username &&
+      !url.password &&
+      url.origin === value &&
+      (url.protocol === "https:" ||
+        (url.protocol === "http:" &&
+          ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))
+    );
   } catch {
     return false;
   }
 }
 check("NEXT_PUBLIC_SUPABASE_URL", validOrigin);
-check("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", value => {
+check("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", (value) => {
   if (/^sb_publishable_[A-Za-z0-9_-]+$/.test(value)) return true;
   try {
     const parts = value.split(".");
-    return parts.length === 3 &&
-      JSON.parse(Buffer.from(parts[1], "base64url").toString()).role === "anon";
+    return (
+      parts.length === 3 &&
+      JSON.parse(Buffer.from(parts[1], "base64url").toString()).role === "anon"
+    );
   } catch {
     return false;
   }
 });
-check("OPENAI_API_KEY", value => /^sk-[A-Za-z0-9_-]{20,}$/.test(value));
-check("OPENAI_MODEL", value => value === "gpt-4.1-mini", true);
+check("OPENAI_API_KEY", (value) => /^sk-[A-Za-z0-9_-]{20,}$/.test(value));
+check("OPENAI_MODEL", (value) => value === "gpt-4.1-mini", true);
 check("APP_URL", validOrigin);
-if (process.argv.includes("--production") &&
-    env.APP_URL !== "https://jarvis-ai-platform.vercel.app") {
+if (
+  process.argv.includes("--production") &&
+  env.APP_URL !== "https://jarvis-ai-platform.vercel.app"
+) {
   console.log("OGILTIG: APP_URL måste matcha projektets produktionsadress.");
   failures++;
 }
-const unsafePublicConfig = Object.keys(env).some(name =>
-  name.startsWith("NEXT_PUBLIC_") && env[name] &&
-  /OPENAI|SERVICE_ROLE|SECRET|PASSWORD|TOKEN|PRIVATE_KEY/.test(name));
+const unsafePublicConfig = Object.keys(env).some(
+  (name) =>
+    name.startsWith("NEXT_PUBLIC_") &&
+    env[name] &&
+    /OPENAI|SERVICE_ROLE|SECRET|PASSWORD|TOKEN|PRIVATE_KEY/.test(name),
+);
 if (unsafePublicConfig) {
-  console.log("OGILTIG: en hemlig variabel har NEXT_PUBLIC_-prefix. Ta bort exponeringen.");
+  console.log(
+    "OGILTIG: en hemlig variabel har NEXT_PUBLIC_-prefix. Ta bort exponeringen.",
+  );
   failures++;
 }
-console.log(failures
-  ? "Konfigurationen är inte klar. Se docs/PRODUCTION_SETUP.md."
-  : "Formatkontrollen passerar. Tjänsteåtkomst och inloggning måste verifieras separat.");
+// Optional feature groups are checked only when requested; never display values.
+if (process.argv.includes("--automation") || process.argv.includes("--email")) {
+  check("SUPABASE_SECRET_KEY", (value) =>
+    /^sb_secret_[A-Za-z0-9_-]+$/.test(value),
+  );
+  check("CRON_SECRET", (value) => value.length >= 32);
+}
+if (process.argv.includes("--email")) {
+  check("GOOGLE_CLIENT_ID", (value) =>
+    value.endsWith(".apps.googleusercontent.com"),
+  );
+  check("GOOGLE_CLIENT_SECRET", (value) => value.length >= 16);
+  check(
+    "EMAIL_ENCRYPTION_KEY",
+    (value) =>
+      /^[A-Za-z0-9+/]{43}=$/.test(value) &&
+      Buffer.from(value, "base64").length === 32,
+  );
+}
+console.log(
+  failures
+    ? "Konfigurationen är inte klar. Se docs/PRODUCTION_SETUP.md."
+    : "Formatkontrollen passerar. Tjänsteåtkomst och inloggning måste verifieras separat.",
+);
 process.exitCode = failures ? 1 : 0;

@@ -3,6 +3,12 @@ import { Target, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 export const statusLabels: Record<string, string> = {
   new: "Ny",
+  unknown: "Okänd",
+  consent: "Samtycke",
+  legitimate_interest: "Intresseavvägning",
+  supported: "Stöds av test",
+  refuted: "Motbevisat",
+  inconclusive: "Oklart",
   analyzing: "Analyseras",
   qualified: "Kvalificerad",
   archived: "Arkiverad",

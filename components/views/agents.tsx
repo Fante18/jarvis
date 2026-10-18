@@ -28,7 +28,9 @@ export default function AgentsView({
           <Activity size={16} />
           <strong>{data.agent_runs.length}</strong> körningar
         </span>
-        <span>Manuell start · inga dolda scheman</span>
+        <span>
+          Egna agenter startas manuellt · Jarvis-scheman styrs i Settings
+        </span>
       </div>
       <div className="agent-cards">
         {data.agents.map((a, i) => (

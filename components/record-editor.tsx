@@ -7,7 +7,14 @@ import { Modal, statusLabels } from "./ui";
 type Field = {
   key: string;
   label: string;
-  type?: "textarea" | "number" | "email" | "url" | "select";
+  type?:
+    | "textarea"
+    | "number"
+    | "email"
+    | "url"
+    | "select"
+    | "datetime-local"
+    | "checkbox";
   options?: string[];
   default?: string | number;
 };
@@ -82,6 +89,27 @@ const fields: Record<Entity, Field[]> = {
       options: ["new", "contacted", "proposal", "won", "lost"],
     },
     { key: "notes", label: "Anteckningar", type: "textarea" },
+    {
+      key: "next_action_at",
+      label: "Nästa uppföljning (valfri)",
+      type: "datetime-local",
+    },
+    {
+      key: "lawful_basis",
+      label: "Rättslig grund för kontaktuppgifter",
+      type: "select",
+      options: ["unknown", "consent", "legitimate_interest"],
+    },
+    {
+      key: "consent_record",
+      label: "Dokumenterat samtycke till mejl (källa och datum)",
+      type: "textarea",
+    },
+    {
+      key: "do_not_contact",
+      label: "Kontakta inte / invändning registrerad",
+      type: "checkbox",
+    },
   ],
   approvals: [
     { key: "title", label: "Föreslagen åtgärd" },
@@ -124,9 +152,17 @@ export default function Editor({
     const payload: Record<string, unknown> = {};
     for (const f of fields[entity])
       payload[f.key] =
-        f.type === "number"
-          ? Number(fd.get(f.key))
-          : String(fd.get(f.key) || "");
+        f.type === "checkbox"
+          ? fd.get(f.key) === "on"
+          : f.type === "datetime-local"
+            ? fd.get(f.key)
+              ? new Date(String(fd.get(f.key))).toISOString()
+              : null
+            : f.type === "number"
+              ? Number(fd.get(f.key))
+              : String(fd.get(f.key) || "");
+    if (entity === "leads")
+      payload.opportunity_id = record?.opportunity_id || null;
     if (entity === "signals")
       payload.published_at = record?.published_at || new Date().toISOString();
     if (entity === "approvals") payload.status = "pending";
@@ -173,6 +209,12 @@ export default function Editor({
                   </option>
                 ))}
               </select>
+            ) : f.type === "checkbox" ? (
+              <input
+                type="checkbox"
+                name={f.key}
+                defaultChecked={Boolean(record?.[f.key])}
+              />
             ) : (
               <input
                 name={f.key}
@@ -180,10 +222,20 @@ export default function Editor({
                 min={f.type === "number" ? 0 : undefined}
                 maxLength={f.type !== "number" ? 300 : undefined}
                 required={
-                  !["email", "source_url"].includes(f.key) ||
+                  !["email", "source_url", "next_action_at"].includes(f.key) ||
                   entity === "signals"
                 }
-                defaultValue={String(record?.[f.key] ?? f.default ?? "")}
+                defaultValue={
+                  f.type === "datetime-local" && record?.[f.key]
+                    ? new Date(
+                        new Date(String(record[f.key])).getTime() -
+                          new Date(String(record[f.key])).getTimezoneOffset() *
+                            60000,
+                      )
+                        .toISOString()
+                        .slice(0, 16)
+                    : String(record?.[f.key] ?? f.default ?? "")
+                }
               />
             )}
           </label>

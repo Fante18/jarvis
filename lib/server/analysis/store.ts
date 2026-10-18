@@ -12,6 +12,7 @@ import type { AnalysisStore } from "./orchestrator";
 export function analysisStore(
   db: SupabaseClient,
   userId: string,
+  worker = false,
 ): AnalysisStore {
   const token = crypto.randomUUID();
   async function update(id: string, patch: Record<string, unknown>) {
@@ -66,7 +67,31 @@ export function analysisStore(
         .eq("user_id", userId)
         .single();
       dbCheck(r.error);
-      return Boolean(r.data?.cancel_requested);
+      if (r.data?.cancel_requested) return true;
+      if (worker) {
+        const job = await db
+          .from("analysis_jobs")
+          .select("schedule_id")
+          .eq("id", id)
+          .eq("user_id", userId)
+          .single();
+        dbCheck(job.error);
+        const controls = await db
+          .from("automation_controls")
+          .select("enabled")
+          .eq("user_id", userId)
+          .maybeSingle();
+        dbCheck(controls.error);
+        const schedule = await db
+          .from("scan_schedules")
+          .select("enabled")
+          .eq("id", job.data?.schedule_id)
+          .eq("user_id", userId)
+          .maybeSingle();
+        dbCheck(schedule.error);
+        return !controls.data?.enabled || !schedule.data?.enabled;
+      }
+      return false;
     },
     async complete(id, report: FinalAnalysis, budget) {
       const r = await db.rpc("finish_analysis", {

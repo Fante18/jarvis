@@ -127,13 +127,17 @@ export default function AnalysisWorkspace({
         budget_cents: Math.round(Number(f.get("budget")) * 100),
         include_sales: f.get("sales") === "on",
       };
-      await api("/api/ai/analyses", {
+      const started = await api("/api/ai/analyses", {
         method: "POST",
         body: JSON.stringify(input),
       });
       await load();
       setOpen(false);
-      state.toast("Jarvis har startat analysen. Du kan följa varje steg här.");
+      state.toast(
+        started.reused
+          ? "En färsk analys för samma uppdrag återanvänds. Inget nytt API-anrop gjordes."
+          : "Jarvis har startat analysen. Du kan följa varje steg här.",
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {

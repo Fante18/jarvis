@@ -40,6 +40,13 @@ export type PipelineDependencies = {
   runStage?: (input: StageInput) => Promise<StageResult>;
   loadSignals?: (topic: string, signal: AbortSignal) => Promise<Source[]>;
   signal?: AbortSignal;
+  loadMemory?: (
+    job: AnalysisJob,
+  ) => Promise<{
+    sources: Source[];
+    public_context: string;
+    private_context: string;
+  }>;
 };
 export async function executeAnalysis(id: string, deps: PipelineDependencies) {
   const job = await deps.store.claim(id);
@@ -60,17 +67,20 @@ export async function executeAnalysis(id: string, deps: PipelineDependencies) {
     ? AbortSignal.any([timeout, deps.signal])
     : timeout;
   try {
+    const memory = await deps.loadMemory?.(job);
     let sources = [
       ...new Map(
-        results.flatMap((r) => r.sources).map((s) => [s.url, s]),
+        [...(memory?.sources || []), ...results.flatMap((r) => r.sources)].map(
+          (s) => [s.url, s],
+        ),
       ).values(),
     ];
     if (results.length === 0) {
       try {
-        sources = await (deps.loadSignals || publicSignals)(
-          request.topic,
-          signal,
-        );
+        sources = [
+          ...sources,
+          ...(await (deps.loadSignals || publicSignals)(request.topic, signal)),
+        ];
       } catch {
         if (signal.aborted)
           throw signal.reason; /* Web research still runs; failed public feeds are not fabricated. */
@@ -89,6 +99,7 @@ export async function executeAnalysis(id: string, deps: PipelineDependencies) {
       }
       const result = await (deps.runStage || runSpecialist)({
         role: plan[i],
+        memory,
         request,
         privateContext: job.private_context,
         previous: results,
@@ -129,10 +140,14 @@ export async function executeAnalysis(id: string, deps: PipelineDependencies) {
               ["TimeoutError", "AbortError"].includes(e.name))
           ? "Tidsgränsen för körningen uppnåddes. Sparade steg finns kvar."
           : diagnostic.message;
-    if (!(e instanceof BudgetExceeded)) console.error("JARVIS analysis failed", {
-      analysis_id: id, category: diagnostic.category, http_status: diagnostic.status,
-      code: diagnostic.code, request_id: diagnostic.requestId,
-    });
+    if (!(e instanceof BudgetExceeded))
+      console.error("JARVIS analysis failed", {
+        analysis_id: id,
+        category: diagnostic.category,
+        http_status: diagnostic.status,
+        code: diagnostic.code,
+        request_id: diagnostic.requestId,
+      });
     await deps.store.fail(id, status, message, budget);
   }
 }

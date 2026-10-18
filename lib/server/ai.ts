@@ -11,6 +11,7 @@ import OpenAI from "openai";
 import "server-only";
 import { openAIOutput } from "./ai-output";
 import { diagnoseAIError } from "./ai-errors";
+import { tokenCost } from "@/lib/analysis/policy";
 import { dbCheck, HttpError } from "./http";
 export function requireAI() {
   if (!process.env.OPENAI_API_KEY)
@@ -56,12 +57,23 @@ export async function workspaceContext(db: SupabaseClient, userId: string) {
   ];
   const results = await Promise.all(queries);
   results.forEach((r) => dbCheck(r.error));
-  const analyses = await db.from("analysis_jobs").select("id,topic,status,report").eq("user_id",userId).order("created_at",{ascending:false}).limit(3);
+  const analyses = await db
+    .from("analysis_jobs")
+    .select("id,topic,status,report")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(3);
   // Keep the existing chat usable before the additive analysis migration is applied.
-  if(analyses.error && !["42P01","PGRST205"].includes(analyses.error.code)) dbCheck(analyses.error);
+  if (analyses.error && !["42P01", "PGRST205"].includes(analyses.error.code))
+    dbCheck(analyses.error);
   // Bound each source separately; one long description cannot exclude other categories.
   return JSON.stringify({
-    analyses:(analyses.data||[]).map(a=>({id:a.id,topic:a.topic,status:a.status,report:JSON.stringify(a.report).slice(0,8000)})),
+    analyses: (analyses.data || []).map((a) => ({
+      id: a.id,
+      topic: a.topic,
+      status: a.status,
+      report: JSON.stringify(a.report).slice(0, 8000),
+    })),
     opportunities: JSON.stringify(results[0].data).slice(0, 9000),
     signals: JSON.stringify(results[1].data).slice(0, 6000),
     pipeline: results[2].data,
@@ -80,9 +92,14 @@ export async function analyzeAgent(
   prompt: string,
   context: string,
   signal: AbortSignal,
-): Promise<{ report: AgentReport; tokens: number }> {
+): Promise<{ report: AgentReport; tokens: number; cost_microusd: number }> {
   const client = aiClient();
   const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+  if (model !== "gpt-4.1-mini")
+    throw new HttpError(
+      503,
+      "Budgetmodellen kräver OPENAI_MODEL=gpt-4.1-mini.",
+    );
   const analyst = new Agent({
     name: agent.name,
     model,
@@ -111,12 +128,27 @@ export async function analyzeAgent(
     (sum, r) => sum + r.usage.totalTokens,
     0,
   );
-  return { report, tokens };
+  const usage = result.rawResponses.reduce(
+    (a, r) => ({
+      input: a.input + r.usage.inputTokens,
+      output: a.output + r.usage.outputTokens,
+    }),
+    { input: 0, output: 0 },
+  );
+  return {
+    report,
+    tokens,
+    cost_microusd: tokenCost(usage.input, usage.output) + 3 * 13200,
+  };
 }
 export function friendlyAIError(e: unknown) {
   if (e instanceof HttpError) return e;
   const diagnosis = diagnoseAIError(e);
-  const status = diagnosis.category === "timeout" ? 504
-    : ["rate_limit", "quota"].includes(diagnosis.category) ? 429 : 502;
+  const status =
+    diagnosis.category === "timeout"
+      ? 504
+      : ["rate_limit", "quota"].includes(diagnosis.category)
+        ? 429
+        : 502;
   return new HttpError(status, diagnosis.message);
 }

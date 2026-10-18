@@ -17,6 +17,7 @@ import {
 } from "@/lib/server/http";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { reserveCost, settleCost } from "@/lib/server/automation/service";
 export const maxDuration = 60;
 export async function POST(req: Request) {
   let runId: string | undefined;
@@ -68,12 +69,14 @@ export async function POST(req: Request) {
     runId = created.data!.id;
     const context = await workspaceContext(db, user.id);
     const signal = AbortSignal.any([req.signal, AbortSignal.timeout(50000)]);
-    const { report, tokens } = await analyzeAgent(
+    const reservation = await reserveCost(db, 1500000, "agent");
+    const { report, tokens, cost_microusd } = await analyzeAgent(
       agent,
       input.prompt,
       context,
       signal,
     );
+    await settleCost(db, reservation, cost_microusd);
     const saved = await db.rpc("complete_agent_run", {
       p_run_id: runId,
       p_report: report,

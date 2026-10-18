@@ -15,6 +15,7 @@ import {
   prepareAnalysisSession,
   PUBLIC_ANALYSIS_FIELDS,
 } from "@/lib/server/analysis/store";
+import { loadMemory } from "@/lib/server/automation/service";
 export const maxDuration = 300;
 export async function POST(
   req: Request,
@@ -74,7 +75,10 @@ export async function POST(
     const store = analysisStore(db, user.id);
     after(async () => {
       try {
-        await executeAnalysis(id, { store });
+        await executeAnalysis(id, {
+          store,
+          loadMemory: (j) => loadMemory(db, user.id, j),
+        });
       } catch {
         console.error("JARVIS resume failed", { analysis_id: id });
       }
