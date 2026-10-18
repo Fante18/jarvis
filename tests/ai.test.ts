@@ -6,6 +6,7 @@ import {
 } from "../lib/ai-contract";
 import { demoWorkspace } from "../lib/demo";
 import { analyzeAgent, requireAI } from "../lib/server/ai";
+import { expectOpenAICompatibleSchema } from "./helpers/openai-contract";
 vi.mock("server-only", () => ({}));
 const report = {
   summary: "Testad rapport med tydlig osäkerhet.",
@@ -118,6 +119,7 @@ describe("AI boundaries and real Agents SDK serialization", () => {
     expect(sent.text).toMatchObject({
       format: { type: "json_schema", strict: true },
     });
+    expectOpenAICompatibleSchema((sent.text as { format: { schema: unknown } }).format.schema);
   });
   it("rejects a structurally invalid model response before persistence", async () => {
     vi.stubEnv("OPENAI_API_KEY", "test-not-a-real-key");

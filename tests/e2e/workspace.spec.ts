@@ -123,6 +123,7 @@ test("search and responsive mobile navigation work", async ({ page }) => {
 });
 test("API refuses unauthenticated mutations and foreign origins", async ({
   request,
+  baseURL,
 }) => {
   const config = await request.get("/api/config");
   expect((await config.json()).supabase).toBe(false);
@@ -140,7 +141,7 @@ test("API refuses unauthenticated mutations and foreign origins", async ({
     notes: "",
   };
   const missing = await request.post("/api/records/leads", {
-    headers: { origin: "http://127.0.0.1:3000" },
+    headers: { origin: new URL(baseURL!).origin },
     data: body,
   });
   expect(missing.status()).toBe(503);
@@ -190,8 +191,9 @@ test("a chat instruction can be reviewed as an agent job without fabricated exec
 });
 test("AI endpoints validate jobs and reject unconfigured execution", async ({
   request,
+  baseURL,
 }) => {
-  const headers = { origin: "http://127.0.0.1:3000" };
+  const headers = { origin: new URL(baseURL!).origin };
   const invalid = await request.post("/api/ai/run", {
     headers,
     data: { agent_id: "bad", prompt: "x" },
@@ -250,8 +252,9 @@ test("Jarvis exposes all specialist roles and an honest configuration gate in ch
 });
 test("analysis endpoints enforce validation, request origin and missing backend configuration", async ({
   request,
+  baseURL,
 }) => {
-  const headers = { origin: "http://127.0.0.1:3000" };
+  const headers = { origin: new URL(baseURL!).origin };
   expect((await request.get("/api/ai/analyses")).status()).toBe(503);
   expect(
     (

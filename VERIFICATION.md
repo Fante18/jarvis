@@ -1,4 +1,14 @@
-# Driftförberedelser — 2026-10-18
+# Scout-felsökning — 2026-10-18
+
+Den första riktiga analysen startade men misslyckades efter ett försök, med noll färdiga steg. Databasen innehåller en reservation på $0.50 och ingen rapporterad tokenkostnad. Reservationen är inte en bekräftad debitering. Det ursprungliga API-felet sparades tyvärr som ett generellt meddelande; Vercels runtime-loggar nekas med HTTP 403 och CLI saknar autentisering. Därför är det exakta ursprungliga leverantörsfelet inte bekräftat.
+
+Ett konkret kodfel reproducerades i de riktiga SDK-genererade HTTP-anropen: Zod emitterar `format: starts_with` för HTTPS-källor, vilket inte ingår i OpenAI Structured Outputs [tillåtna format](https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas). Den nya serveradaptern skickar bara tillåtna format och lämnar stränglängd/URL-validering till oförändrade Zod-scheman efter modellsvaret. Både analyskedjan och äldre enstaka agenter använder adaptern. Två kontraktkontroller misslyckades före rättningen och passerar efter den.
+
+Säkra felkategorier för nyckel, behörighet, kvot, rate limit, modell, schema, timeout, nätverk och ogiltigt utdata sparas nu. Endast godkända status-/felkoder och validerat request-ID loggas; råa leverantörsmeddelanden, nycklar och indata loggas inte. Ett SDK-test med HTTP 429 verifierar att insufficient_quota sparas begripligt, att rå feltext inte läcker, att inga automatiska omförsök sker och att kostnadsreservationen behålls.
+
+49 automatiska tester, 12 webbläsarkontroller, typkontroll och produktionsbygge passerar. Browserkontrollerna kördes mot en separat server på port 3012, så en äldre server inte kunde återanvändas av misstag. Tre tester hade hårdkodad port i Origin-headern; de använder nu den verkliga testadressen och passerar med bibehållna kontroller av främmande ursprung. Ingen betald analys eller budgetåterställning utförs automatiskt. Fullständig riktig Scout-till-Jarvis-körning behöver fortfarande verifieras med användarens session efter publicering.
+
+# Driftförberedelser — historik 2026-10-18
 
 - GitHub-kopplingen från `Fante18/jarvis` till befintligt Vercel-projekt `jarvis-ai-platform` är bekräftad genom Vercels repository-filter.
 - Befintligt Supabase-projekt `jarvis` (`yqzdkzwwqanwzeslmxtd`) är ACTIVE_HEALTHY. De fyra befintliga migrationerna installerades utan ändrat SQL-innehåll. Lokala filnamn matchar verkliga migrationsversioner; gamla namn finns i `docs/PRODUCTION_SETUP.md` och ursprunglig backup bevaras.

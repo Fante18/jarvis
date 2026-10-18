@@ -16,6 +16,7 @@ import {
   MAX_STAGE_MS,
 } from "@/lib/analysis/policy";
 import { runSpecialist, publicSignals, type StageInput } from "./provider";
+import { diagnoseAIError } from "../ai-errors";
 export interface AnalysisStore {
   claim(id: string): Promise<AnalysisJob>;
   checkpoint(
@@ -119,6 +120,7 @@ export async function executeAnalysis(id: string, deps: PipelineDependencies) {
     await deps.store.complete(id, finalReport(results), budget);
   } catch (e) {
     const status = e instanceof BudgetExceeded ? "budget_exceeded" : "failed";
+    const diagnostic = diagnoseAIError(e);
     const message =
       e instanceof BudgetExceeded
         ? e.message
@@ -126,7 +128,11 @@ export async function executeAnalysis(id: string, deps: PipelineDependencies) {
             (e instanceof Error &&
               ["TimeoutError", "AbortError"].includes(e.name))
           ? "Tidsgränsen för körningen uppnåddes. Sparade steg finns kvar."
-          : "Agentsteget kunde inte slutföras. Kontrollera API-behörighet, kvot och uppdrag. Sparade steg finns kvar.";
+          : diagnostic.message;
+    if (!(e instanceof BudgetExceeded)) console.error("JARVIS analysis failed", {
+      analysis_id: id, category: diagnostic.category, http_status: diagnostic.status,
+      code: diagnostic.code, request_id: diagnostic.requestId,
+    });
     await deps.store.fail(id, status, message, budget);
   }
 }

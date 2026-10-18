@@ -140,6 +140,27 @@ describe("complete Scout → Jarvis workflow with actual SDK and simulated provi
     expect(job.status).toBe("cancelled");
     expect(call).not.toHaveBeenCalled();
   });
+  it("persists the exact safe quota category through the actual SDK without retries or leaking raw error data", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key-not-real");
+    const privateMessage = "private-provider-message-must-not-be-saved";
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ error: {
+      message: privateMessage, type: "insufficient_quota", code: "insufficient_quota", param: null,
+    } }), { status: 429, headers: { "Content-Type": "application/json", "x-request-id": "req_quota_test" } }));
+    vi.stubGlobal("fetch", fetch);
+    const job = fixtureJob();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await executeAnalysis(job.id, { store: memory(job), loadSignals: async () => [] });
+      expect(job.status).toBe("failed");
+      expect(job.error).toContain("insufficient_quota");
+      expect(job.error).toContain("Billing");
+      expect(job.error).not.toContain(privateMessage);
+      expect(JSON.stringify(log.mock.calls)).not.toContain(privateMessage);
+      expect(job.reserved_microusd).toBe(500000);
+      expect(job.results).toHaveLength(0);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally { log.mockRestore(); }
+  });
   it("never marks a failed or aborted stage as a complete report", async () => {
     const job = fixtureJob();
     await executeAnalysis(job.id, {

@@ -9,6 +9,8 @@ import { Agent, OpenAIProvider, Runner, webSearchTool } from "@openai/agents";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import "server-only";
+import { openAIOutput } from "./ai-output";
+import { diagnoseAIError } from "./ai-errors";
 import { dbCheck, HttpError } from "./http";
 export function requireAI() {
   if (!process.env.OPENAI_API_KEY)
@@ -86,7 +88,7 @@ export async function analyzeAgent(
     model,
     instructions: `${BASE_INSTRUCTIONS}\nDagens datum: ${new Date().toISOString().slice(0, 10)}.\nSpecialisering: ${agent.kind}. Agentens uppdrag: ${agent.description.slice(0, 3000)}.\nGör en avgränsad analys självständigt inom användarens uppdrag. Använd webbsökning för färska påståenden, högst tre sökningar. Lägg aldrig kontaktuppgifter, interna bolagsnamn eller hemligheter i sökfrågor. Spara högst tre relevanta signaler med riktiga https-källor, tre affärsmöjligheter och tre åtgärdsförslag. Tomma listor är tillåtna. Markera uppskattningar i beskrivningarna. Källänkar ska faktiskt stödja analysen. Föreslå inte investeringar eller outreach som om de vore utförda. Ingen åtgärd utförs när rapporten sparas. Varje möjlighet behöver konkret valideringsplan. Sammanfatta osäkerheter och vad som återstår att verifiera.`,
     tools: [webSearchTool({ searchContextSize: "low" })],
-    outputType: reportSchema,
+    outputType: openAIOutput(reportSchema),
     modelSettings: {
       maxTokens: outputTokenLimit(agent.budget_cents),
       store: false,
@@ -113,28 +115,8 @@ export async function analyzeAgent(
 }
 export function friendlyAIError(e: unknown) {
   if (e instanceof HttpError) return e;
-  if (e instanceof OpenAI.APIError) {
-    if (e.status === 401 || e.status === 403)
-      return new HttpError(
-        502,
-        "OpenAI nekade åtkomst. Kontrollera serverns API-nyckel och modellbehörighet.",
-      );
-    if (e.status === 429)
-      return new HttpError(
-        429,
-        "OpenAI:s kapacitets- eller kvotgräns är nådd. Kontrollera projektets användning och saldo.",
-      );
-  }
-  if (
-    e instanceof Error &&
-    (e.name === "AbortError" || e.name === "TimeoutError")
-  )
-    return new HttpError(
-      504,
-      "Körningen tog för lång tid. Försök med ett mer avgränsat uppdrag.",
-    );
-  return new HttpError(
-    502,
-    "AI-anropet kunde inte slutföras. Kontrollera modell, API-behörighet och försök med ett mindre uppdrag.",
-  );
+  const diagnosis = diagnoseAIError(e);
+  const status = diagnosis.category === "timeout" ? 504
+    : ["rate_limit", "quota"].includes(diagnosis.category) ? 429 : 502;
+  return new HttpError(status, diagnosis.message);
 }
