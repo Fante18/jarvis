@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { CommercialBrief } from "./commercial";
 export const agentRoles = [
   "scout",
   "research",
@@ -31,7 +32,7 @@ export const specialists: Record<
   },
   strategist: {
     name: "Strategist Agent",
-    task: "Utveckla erbjudande, affärsmodell, realistisk kundåtkomst och genomförandeplan baserat på underlaget. Hitta inte på partnerskap eller kunder.",
+    task: "Utveckla ett konkret erbjudande i opportunity.offer: avgränsad leverans, tydlig köpare, vilket problem som löses och vilket mätbart resultat som ska testas. Planera hur leveransen kan byggas och testas med begränsad budget. Bedöm vad AI kan utföra och vad som kräver verklig kompetens, kundåtkomst eller integration. Hitta inte på partnerskap, kunder, byggda produkter eller leveransförmåga.",
     web: false,
   },
   finance: {
@@ -214,6 +215,7 @@ export type Scorecard = {
   limitations: string[];
 };
 export type FinalAnalysis = {
+  commercial_brief?: CommercialBrief;
   recommendation: StageOutput["recommendation"];
   summary: string;
   opportunity: StageOutput["opportunity"];

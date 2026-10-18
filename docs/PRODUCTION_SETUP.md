@@ -22,6 +22,8 @@ Följande migrationer installerades i det befintliga projektet 2026-10-18:
 
 Steg 3 installerade även `20261018155013_automation_and_crm.sql` i samma projekt. Nu har samtliga 23 apptabeller RLS. Grundmigrationerna ovan ska fortfarande inte köras om.
 
+`20261018215634_commercial_reviews.sql` är också installerad: nya analyser kan skapa ett granskningsärende med oföränderlig länk till affärsunderlaget. Inga nya tabeller, projekt eller externa sändbehörigheter tillkommer. Funktionen kör som anroparen; befintlig ägarisolering behålls.
+
 De fyra ursprungliga migrationernas sQL-innehållet är oförändrat. Filnamnen matchar Supabase-projektets verkliga migrationshistorik, så framtida CLI-migrationer inte försöker installera grunden en gång till. Kör inte dessa filer igen i produktion. Alla 14 apptabeller har RLS, sammanställningsvyn använder `security_invoker=true` och `research`-bucketen är privat. Ursprunglig källkodsbackup finns kvar i `/workspace/jarvis-source.zip`.
 
 ## Miljövariabler i Vercel

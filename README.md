@@ -16,7 +16,7 @@ npm run dev
 
 ## Supabase
 
-Produktionsprojektet `jarvis` finns redan och de ursprungliga fyra migrationerna är installerade; steg 3 lägger till en migration. Se [exakta produktionsinställningar och återstående aktivering](docs/PRODUCTION_SETUP.md). Skapa inte ett nytt projekt och kör inte redan installerade migrationer igen.
+Produktionsprojektet `jarvis` finns redan och alla sex befintliga migrationsfiler är installerade. Se [exakta produktionsinställningar och återstående aktivering](docs/PRODUCTION_SETUP.md). Skapa inte ett nytt projekt och kör inte redan installerade migrationer igen.
 
 1. För en separat, tom utvecklingsdatabas: kör SQL-filerna i `supabase/migrations/` i filnamnsordning, alternativt använd Supabase CLI migrationshantering. Produktionsdatabasens versionsnummer matchar filnamnen.
 2. Ange `NEXT_PUBLIC_SUPABASE_URL` och `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` i `.env.local`. Äldre anon key fungerar också som publishable key.
@@ -61,6 +61,8 @@ Tokenbudgeten styr maximal svarslängd och är en **riktbudget, inget hårt kost
 ## Steg 3
 
 Schemalagda skanningar, källåteranvändning, dubblettkontroll, dagliga sammanfattningar, CRM-uppföljning, säljutkast, faktiska utfall, mätbar feedback och Gmail OAuth är implementerade. Se [exakta aktiveringssteg och begränsningar](docs/PHASE3.md). Ingen automatisk sändning eller ekonomisk transaktion är möjlig. Dashboardens registrerade kassaflöde räknas separat från vunna CRM-affärers värde.
+
+Nya analyser förbereder även ett automatiskt affärsunderlag och ett granskningsärende för lovande valideringstester. Erbjudande, hypotetiskt pris, test och säljtext återanvänder befintliga agentsteg. Svagt eller avvisat underlag leder till fortsatt research eller avstå. Kundprodukt, betalningar och extern försäljning kräver separat genomförande; se [affärsflödet](docs/PHASE3.md#från-analys-till-affärstest).
 
 ## Privat fillagring
 

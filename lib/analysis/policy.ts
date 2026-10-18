@@ -9,6 +9,7 @@ import {
   type Scorecard,
   type FinalAnalysis,
 } from "./contracts";
+import { commercialBrief } from "./commercial";
 export const MODEL = "gpt-4.1-mini";
 export const PRICING_VERSION =
   "gpt-4.1-mini-2025-04; input $0.40/M, output $1.60/M; web reserve $0.50/request";
@@ -190,7 +191,7 @@ export function finalReport(results: StageResult[]): FinalAnalysis {
   const scout = results.find((r) => r.role === "scout")!,
     validator = results.find((r) => r.role === "validator")!,
     critic = results.find((r) => r.role === "critic")!;
-  return {
+  const report: FinalAnalysis = {
     recommendation:
       new Set(results.flatMap((r) => r.sources.map((s) => s.url))).size < 2 &&
       last.output.recommendation !== "reject"
@@ -209,4 +210,6 @@ export function finalReport(results: StageResult[]): FinalAnalysis {
     model: MODEL,
     pricing_version: PRICING_VERSION,
   };
+  report.commercial_brief = commercialBrief(report, results);
+  return report;
 }

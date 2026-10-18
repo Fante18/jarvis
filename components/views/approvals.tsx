@@ -1,5 +1,6 @@
 "use client";
 import { money } from "@/lib/domain";
+import Link from "next/link";
 import { Check, ShieldCheck, X } from "lucide-react";
 import { Badge, Empty, statusLabels } from "../ui";
 import type { ViewProps } from "../view-props";
@@ -60,6 +61,13 @@ export default function ApprovalsView({
                 </div>
                 <h2>{a.title}</h2>
                 <p className="pre-wrap">{a.description}</p>
+                {a.source_analysis_id && (
+                  <p>
+                    <Link href={`/chat?analysis_id=${a.source_analysis_id}`}>
+                      Läs agenternas affärsunderlag och källor →
+                    </Link>
+                  </p>
+                )}
                 <small>
                   Typ: {a.action_type} · Uppskattad kostnad: {money(a.amount)}
                 </small>

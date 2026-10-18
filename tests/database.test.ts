@@ -176,7 +176,52 @@ describe("PostgreSQL row isolation and constraints", () => {
       expect(opp[0].score).toBe(74);
       expect(Number(opp[0].value)).toBe(0);
       expect(transport.calls).toHaveLength(7);
+      const review = (
+        await db.query<{
+          id: string;
+          status: string;
+          action_type: string;
+          amount: string;
+        }>(
+          "select id,status,action_type,amount from public.approvals where source_analysis_id=$1",
+          [id],
+        )
+      ).rows;
+      expect(review).toHaveLength(1);
+      expect(review[0]).toMatchObject({
+        status: "pending",
+        action_type: "research",
+        amount: "500",
+      });
+      await expect(
+        db.query(
+          "update public.approvals set source_analysis_id=null where id=$1",
+          [review[0].id],
+        ),
+      ).rejects.toThrow(/immutable/);
+      expect(
+        (
+          await db.query(
+            "select id from public.sales_drafts where user_id=$1",
+            [alice],
+          )
+        ).rows,
+      ).toHaveLength(0);
       await asUser(bob);
+      expect(
+        (
+          await db.query(
+            "select id from public.approvals where source_analysis_id=$1",
+            [id],
+          )
+        ).rows,
+      ).toHaveLength(0);
+      await expect(
+        db.query(
+          "insert into public.approvals(user_id,title,description,risk,action_type,source_analysis_id) values($1,'Cross-owner','Invalid','low','research',$2)",
+          [bob, id],
+        ),
+      ).rejects.toThrow(/owner or state mismatch/);
       expect(
         (
           await db.query(
@@ -1018,6 +1063,21 @@ it("executes scheduled Scout → Jarvis as the scoped worker and merges a repeat
       );
     }
     expect(transport.calls).toHaveLength(14);
+    expect(
+      (
+        await db.query(
+          "select source_analysis_id,status from public.approvals where user_id=$1 and source_analysis_id is not null",
+          [owner],
+        )
+      ).rows,
+    ).toHaveLength(1);
+    expect(
+      (
+        await db.query("select id from public.sales_drafts where user_id=$1", [
+          owner,
+        ])
+      ).rows,
+    ).toHaveLength(0);
     expect(
       (
         await db.query("select * from public.opportunities where user_id=$1", [

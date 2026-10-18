@@ -15,6 +15,15 @@ Befintlig kod, analyser och historik bevaras. Inga nya Supabase- eller Vercel-pr
 - Faktiska inbetalningar, återbetalningar och betalda kostnader registreras separat i heltalsören. Unik referens och post-ID hindrar dubbelregistrering. Felaktiga poster makuleras och ersätts, historiken bevaras. Vunna CRM-affärer är affärsvärden, inte mottagna pengar. Ingen bank- eller bokföringssynk finns; utfallen är användarens registreringar, inte automatiskt verifierade transaktioner.
 - Genomförda valideringstester sparar antagande, testreferens, stickprov, positiva utfall, resultat och koppling till ursprungsanalysen. Samma testreferens kan inte räknas två gånger för samma möjlighet. Efter minst fem avgörande testutfall för en möjlighet justeras dess prioritering med högst ±10. Osäkra tester påverkar inte justeringen. Modellens ursprungliga poäng och kod ändras inte. Återkoppling följer med som privat underlag till senare analyssteg, aldrig till webbsökningarna.
 - Dashboard visar aktiva analyskörningar, dagliga fynd, öppna affärer, beslut, registrerat kassaflöde och API-budget. Nya audit-loggar är oföränderliga för användare och sparar bara identifierare, fältnamn och statusövergångar.
+- Nya kompletta analyser får automatiskt ett sparat **affärsunderlag**: Strategists erbjudande och leveransplan, Finances hypotetiska månadspris, Validators första mätbara test, osäkerheter och en osänd säljtext. Befintlig Sales-text används när Sales ingår; annars används en uttryckligt märkt generisk mall utan mottagare. Detta kräver inga ytterligare modellsteg. Historiska rapporter behålls som de är.
+
+## Från analys till affärstest
+
+Affärsunderlaget ligger i analysrapporten. Ett förslag till valideringstest skapas automatiskt i **Approvals** när analysen har minst två dokumenterade källor, minst 50 prioriteringspoäng, ett test med mätetal/stoppkriterium, positivt prisantagande och ett hypotetiskt lönsamt basscenario. Jarvis får inte bedöma underlaget som otillräckligt och varken Jarvis eller Critic får rekommendera att avstå. Dessa är fasta prioriteringsregler, inte en lönsamhetsgaranti eller bevis på betalningsvilja. Saknade kontrollerade källcitat framgår särskilt.
+
+Ett väntande affärstest per möjlighet begränsar dubbletter. Varje analys behåller ändå sitt eget underlag. Granskningsärendet länkar till exakt den rapport som förslaget grundas på. Ett godkänt eller avslaget beslut och dess källa kan inte skrivas om. Testkostnaden i förslaget är en uppskattning, inte en utförd transaktion eller tillåtelse att spendera pengar.
+
+Godkännande dokumenterar endast användarens val av inriktning. Flödet bygger inte automatiskt en kundprodukt, identifierar inte en namngiven betalande kund och gör inga testköp, publiceringar eller kundkontakter. Verklig leverans, kundåtkomst, betalningsupplägg och efterfrågan behöver verifieras innan en affär kan ge intäkter. Befintlig Gmail-sändning kräver fortfarande ett separat godkänt exakt meddelande och ett manuellt sändningsklick. Detta är förberedelse för affärer, inte ett färdigt autonomt försäljnings- och leveranssystem.
 
 ## Aktivera bakgrundskörningar
 

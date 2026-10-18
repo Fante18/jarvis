@@ -71,6 +71,20 @@ test("saved analysis renders score, assumptions, source provenance and all speci
     }),
   ).toBeVisible();
   await expect(dialog.locator(".analysis-step")).toHaveCount(7);
+  const brief = dialog.getByRole("region", {
+    name: "Automatiskt affärsunderlag",
+  });
+  await expect(brief).toContainText(
+    "Redo för granskning av ett valideringstest",
+  );
+  await expect(brief).toContainText("uppskattning att testa");
+  await expect(brief).toContainText("Ingen kundlösning har byggts");
+  await expect(
+    brief.getByRole("link", { name: /Granska affärstest/ }),
+  ).toHaveAttribute("href", "/approvals");
+  await brief.locator("summary").click();
+  await expect(brief).toContainText("Generisk mall");
+  await expect(brief).toContainText("ingen mottagare är vald");
   await dialog.locator(".analysis-step").first().locator("summary").click();
   await expect(
     dialog.getByText("Hypotes", { exact: true }).first(),
@@ -79,6 +93,11 @@ test("saved analysis renders score, assumptions, source provenance and all speci
     dialog.getByText("Källcitat verifierat", { exact: true }).first(),
   ).toBeVisible();
   await expect(dialog.locator(".analysis-source")).toHaveCount(2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(391);
+  await expect(brief).toBeVisible();
   await page.screenshot({
     path: "artifacts/jarvis-analysis-report.png",
     fullPage: true,

@@ -85,6 +85,7 @@ export type Approval = Omit<z.infer<typeof entitySchemas.approvals>, "status"> &
   BaseRow & {
     status: "pending" | "approved" | "rejected";
     decided_at?: string;
+    source_analysis_id?: string | null;
   };
 export type Activity = BaseRow & {
   title: string;

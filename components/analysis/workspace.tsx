@@ -31,6 +31,7 @@ import {
 import { planAnalysis } from "@/lib/analysis/policy";
 import { money, safeSourceUrl } from "@/lib/domain";
 import { Modal } from "../ui";
+import CommercialBriefView from "./commercial-brief";
 const labels = {
   queued: "I kö",
   running: "Analyserar",
@@ -436,6 +437,9 @@ function AnalysisReport({ job }: { job: AnalysisJob }) {
             AI-bedömning, inte ett verifierat sakförhållande. Endast ordagranna
             källcitat kontrolleras automatiskt.
           </p>
+          {report.commercial_brief && (
+            <CommercialBriefView brief={report.commercial_brief} />
+          )}
           <div className="score-dimensions">
             {dimensionKeys.map((k) => (
               <div key={k}>

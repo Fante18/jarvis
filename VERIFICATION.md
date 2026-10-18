@@ -1,4 +1,24 @@
-# Serverkonfiguration — verifiering 2026-10-18
+# Automatisk affärsberedning — verifiering 2026-10-18
+
+Nya kompletta Scout–Jarvis-analyser sammanställer ett sparat affärsunderlag från befintliga specialiststeg: avgränsat erbjudande, hypotetiskt månadspris, valideringstest, leveransplan, beläggsstatus, risker och osänd säljtext. Sales Agent-text återanvänds när Sales ingår; annars skapas en uttryckligt märkt generisk mall utan mottagare. Inga extra modellsteg, fejkade kunder eller registrerade intäkter tillkommer.
+
+Fasta regler skickar svaga underlag till research och respekterar avslag från Critic eller Jarvis. Underlag med minst två källor, 50 poäng, ett konkret test, positivt prisantagande och hypotetiskt lönsamt basscenario kan föreslås för granskning. Gränserna motiverar ett test, inte en förväntan om försäljning. Saknad betalningsvalidering, verklig köpare och leveransförmåga anges alltid.
+
+`20261018215634_commercial_reviews.sql` är installerad i befintligt Supabase-projekt. Den atomiska slutpubliceringen skapar ett väntande granskningsärende med oföränderlig källanalys. Två analyser av samma möjlighet ger högst ett väntande ärende men behåller båda rapporterna. Approvals länkar till originalets affärsunderlag och källor. Beslut utför inga tester, köp, utskick eller publiceringar. Den tidigare separata kontrollen för exakt meddelande, samtycke och manuell Gmail-sändning är kvar.
+
+**79 automatiska tester och 19 webbläsarkontroller**, inklusive affärsunderlagets mobilbredd, passerar. TypeScript och Next.js-produktionsbygget passerar. PostgreSQL kör alla sex migrationsfiler; verkliga Agents SDK-koden med simulerade HTTP-svar slutför två schemalagda analyser, en möjlighet, ett väntande granskningsärende och noll säljutkast. Testerna kontrollerar även källcitat utan påhittad betalningshistorik, Critics veto, saknade belägg/ekonomi/test, låst källreferens och nekad koppling över ägargränsen. Inga nya modellsteg krävs (sju anrop per normal analys).
+
+Katalogfråga i riktig databas bekräftar källkolumn, installerad trigger, invoker-funktion, ingen anonym EXECUTE och fortsatt RLS. Security Advisors ger samma fyra varningskategorier som före migrationen, inga nya. Ingen säkerhetskritisk Auth-, RLS- eller Deployment Protection-inställning ändras. Alla 23 befintliga apptabeller är kvar; inga nya projekt skapas.
+
+Riktig driftstatus vid kontrollen: **1 aktiverat dagligt schema**, **$1.50/analys**, central automatisering **på**, **$2/dag och $10/månad**, **0 schemalagda körningar**, **0 anslutna mejlkonton**. Det tidigare avklippta offentliga sökområdet (499 tecken, avslutat mitt i en mening) ersattes med en komplett version på 477 tecken inom samma el-/VVS-inriktning. Frekvens, aktivering, budget och körtid ändrades inte. Tidigare **1 komplett riktig analys och 1 möjlighet** är kvar; inga granskningsärenden skapades från gamla rapporter.
+
+En riktig schemalagd körning med det nya underlaget återstår att verifiera efter publicering. Vercels skyddade HTTP-/loggkontroll har senast nekats med 403; inga privata nycklar hämtas för att kringgå detta. Verklig kundprodukt, försäljning, betalningsflöde och leverans är inte implementerade av denna avgränsade utökning. Ursprunglig kodbackup har fortsatt SHA256 `51ee6147163c6fc81d2ca7af1b62f37b1e3ea5ab21af038a8e862ae3a9463559`.
+
+---
+
+Nedan följer historiska verifieringar med den konfiguration som gällde vid respektive kontroll.
+
+# Serverkonfiguration — tidigare verifiering 2026-10-18
 
 Den tidigare konfigurationskontrollen accepterade bara moderna `sb_secret_`-nycklar, trots att Supabase även stöder aktiverade äldre `service_role`-JWT. Båda formaten stöds nu; public/anon- och vanliga användarnycklar avvisas. Formatvalidering ersätter inte autentisering: den inloggade inställningssidan verifierar serverbehörighet med ett ägaravgränsat HEAD-anrop utan att hämta datarader. Timeout är fem sekunder och status kan återanvändas i högst 30 sekunder.
 
