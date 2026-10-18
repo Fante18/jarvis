@@ -9,7 +9,7 @@
 
 ## Kontroller som passerar
 
-**69 automatiska tester**, **17 webbläsartester**, TypeScript och Next.js-produktionsbygge. Browserkontroller kördes mot en separat färsk produktionsserver på port 3013 med återanvändning av server avstängd.
+**69 automatiska tester**, **18 webbläsartester**, TypeScript och Next.js-produktionsbygge. Browserkontroller kördes mot en separat färsk produktionsserver på port 3013 med återanvändning av server avstängd.
 
 PostgreSQL/PGlite kör alla fem riktiga migrationsfiler och verifierar ägarisolering, gemensam budget före AI-anrop, kvarhållna osäkra reservationer över periodskiften, schemaläggarens åtkomst och paus, betalda utfall separat från vunna affärsvärden, dubblettskydd för betalningar/tester och låst godkännandesnapshot. Hela schemalagda Scout–Jarvis-kedjan körs två gånger genom riktiga Agents SDK och PostgreSQL med simulerade OpenAI-HTTP-svar. Resultatet är en möjlighet och två kompletta analyser med bevarad historik. Ett saknat service-role SELECT-grant för befintlig agent_runs-kontroll upptäcktes och rättades i detta test.
 

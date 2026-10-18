@@ -39,7 +39,7 @@ async function setup(page: Page) {
     daily_microusd: 60721,
     monthly_microusd: 60721,
     audit: [],
-    feedback: [],
+    feedback: [] as Record<string, unknown>[],
     calibration: { samples: 0, supported: 0, refuted: 0, adjustment: 0 },
     digest: {
       day: "2026-10-18",
@@ -273,4 +273,44 @@ test("new mutation endpoints reject foreign origins and the cron never runs with
     },
   });
   expect(noUser.status()).toBe(503);
+});
+
+test("measured feedback changes priority while verified evidence stays first and model scores stay intact", async ({
+  page,
+}) => {
+  const f = await setup(page);
+  f.automation.feedback.push(
+    ...Array.from({ length: 5 }, (_, i) => ({
+      id: crypto.randomUUID(),
+      opportunity_id: oppId,
+      analysis_id: null,
+      test_reference: `test-${i}`,
+      sample_size: 1,
+      positive_results: 1,
+      verdict: "supported",
+      assumption: "A paid pilot assumption",
+      result: "One measured positive result",
+      evidence_url: "",
+      observed_at: new Date().toISOString(),
+    })),
+  );
+  f.w.opportunities.push({
+    ...f.w.opportunities[0],
+    id: "60000000-0000-4000-8000-000000000009",
+    title: "A source-backed opportunity",
+    score: 20,
+    verified_evidence_count: 2,
+  });
+  await page.goto("/opportunities");
+  const cards = page.locator(".opportunity-card");
+  await expect(cards.first()).toContainText("A source-backed opportunity");
+  const measured = cards.filter({ hasText: "Test business opportunity" });
+  await expect(measured.locator(".opportunity-score>strong")).toHaveText(
+    "55/100",
+  );
+  await expect(measured).toContainText("Modellpoäng 45");
+  await expect(measured.locator(".opportunity-score>div>span")).toHaveAttribute(
+    "style",
+    /width: 55%/,
+  );
 });

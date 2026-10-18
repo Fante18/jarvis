@@ -93,7 +93,7 @@ export default function OpportunitiesView({
                   <small>/100</small>
                 </strong>
                 <div>
-                  <span style={{ width: `${o.score}%` }} />
+                  <span style={{ width: `${rank(o).adjusted_score}%` }} />
                 </div>
               </div>
               {rank(o).adjusted_score !== o.score && (
