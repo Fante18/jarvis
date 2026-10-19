@@ -1,5 +1,10 @@
 import type { FinalAnalysis, StageResult } from "./contracts";
 
+// These limits select small proposals to review, not approved spending or a
+// change to the user's separate API budgets. Larger tests remain in the report.
+export const MAX_PROPOSED_TEST_COST_SEK = 500;
+export const MAX_PROPOSED_TEST_DAYS = 14;
+
 export type CommercialBrief = {
   version: 1;
   status: "review" | "research" | "stop";
@@ -25,7 +30,16 @@ export function commercialBrief(
   const critic = results.find((r) => r.role === "critic")?.output;
   const sales = results.find((r) => r.role === "sales")?.output.contact_draft;
   const offer = strategy?.opportunity || report.opportunity;
-  const test = report.validation_tests[0] || null;
+  const smallTests = report.validation_tests
+    .filter(
+      (t) =>
+        t.estimated_cost_sek <= MAX_PROPOSED_TEST_COST_SEK &&
+        t.days <= MAX_PROPOSED_TEST_DAYS,
+    )
+    .sort(
+      (a, b) => a.estimated_cost_sek - b.estimated_cost_sek || a.days - b.days,
+    );
+  const test = smallTests[0] || report.validation_tests[0] || null;
   const sourceUrls = [
     ...new Set(results.flatMap((r) => r.sources.map((s) => s.url))),
   ];
@@ -51,6 +65,10 @@ export function commercialBrief(
     );
   if (!test)
     blockers.push("Ett mätbart valideringstest med stoppkriterium saknas.");
+  else if (!smallTests.length)
+    blockers.push(
+      `Testet ryms inte i ramen för ett första förslag: högst ${MAX_PROPOSED_TEST_COST_SEK} SEK och ${MAX_PROPOSED_TEST_DAYS} dagar. Ingen extern testkostnad är godkänd. Ett mindre test behövs före större utveckling.`,
+    );
   if (!base || base.monthly_profit_sek <= 0)
     blockers.push("Ett lönsamt basscenario saknas. Ekonomin behöver omprövas.");
   if (price === undefined || price <= 0)
@@ -67,7 +85,11 @@ export function commercialBrief(
     sourceUrls.length >= 2 &&
     report.scorecard.total >= 50 &&
     Boolean(
-      test && base && base.monthly_profit_sek > 0 && price && price > 0,
+      smallTests.length &&
+        base &&
+        base.monthly_profit_sek > 0 &&
+        price &&
+        price > 0,
     ) &&
     report.recommendation !== "insufficient_evidence";
   blockers.push(

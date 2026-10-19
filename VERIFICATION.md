@@ -1,3 +1,27 @@
+# Fortsatt affärsflöde — verifiering 2026-10-19
+
+## Första riktiga schemalagda analysen
+
+Läsning av den befintliga produktionsdatabasen bekräftar att `1511d662-06e4-4a8e-a4dd-c0ca67388ee7` kördes automatiskt 2026-10-19 **06:26:09–06:27:06 UTC**. Samtliga sju steg slutfördes utan fel. Beräknad tokenkostnad är **$0.061911**, reservation **$0**. Rapporten sparar 48 källposter, noll kontrollerade källcitat, poäng 6/100 och affärsstatus `research`. Det är ett fungerande riktigt bakgrundsflöde, inte verifierad efterfrågan eller intäkt. Ingen ny betald testkörning startades av denna felsökning.
+
+Rapporten föreslog samtidigt ett komplett affärssystem och ett 90-dagarstest för 50 000 SEK. Instruktionerna förtydligas nu så första testet avgränsas före större utveckling och återstående verktygs-/kompetensberoenden anges. Urvalet till automatiskt granskningsärende kräver ett befintligt test på högst 500 SEK och 14 dagar. Originalets större test och kostnad skrivs inte om. Detta är en gräns för förslag, ingen tilldelad budget eller tillåtelse att spendera pengar.
+
+Modellens motiveringar för poäng 5–7 beskrev mellannivåbedömningar, vilket gör skalvalet otydligt. Instruktioner och schema anger nu uttryckligen 0–100 med kalibreringspunkter. Det är inte bevisat att modellen avsåg en annan skala; historiska poäng bevaras och inga värden räknas upp automatiskt. Nytt modellbeteende behöver följas upp på senare riktiga körningar.
+
+**82 automatiska tester, 19 webbläsarkontroller** och produktionsbygget inklusive TypeScript passerar. Nya regressionstester stoppar ett 50 000 SEK/90-dagarstest, väljer ett redan föreslaget mindre test utan att ändra originalen och bevarar genuint låga poäng. Utdataformatet verifieras genom riktiga SDK-anrop med simulerade HTTP-svar. Browserkontrollerna kördes separat mot en färsk produktionsserver på port 3016 utan återanvändning av gammal server.
+
+## Betalning och produktleverans är blockerade på anslutning
+
+Källkod och listade Vercel-variabelnamn innehåller ingen betalningsimplementation eller Stripe-/Shopify-konfiguration. Detta bevisar inte att ägaren saknar ett konto utanför projektet. Vercels integrationslista nekar team `fante` med **403**. CLI saknar autentisering; både kategorilista och discovery startade inloggning, som avbröts utan att någon identitet eller behörighet ändrades. Ingen integration eller ny Vercel-/Supabase-resurs har skapats.
+
+Den offentliga Marketplace-sidan bekräftar Stripe för en enda köpknapp och stöd för sandbox. Riktig integration behövs före ett byggt och verifierat köp-/leveransflöde. Ingen mock-checkout, betalningsknapp utan funktion, kunddebitering eller automatisk transaktion läggs till. Ägaren behöver ansluta betaltjänsten och ge anslutningen åtkomst till rätt Vercel-team/projekt. Produkt, pris, villkor och offentlig kundåtkomst behöver granskas före liveaktivering. Befintliga Auth-/RLS-/Deployment Protection-inställningar och budgetar är oförändrade.
+
+Ett konkret administrativt mallpaket och en köp-/leveransplan finns privat under `/workspace/jarvis-private-products/`, utanför det publika GitHub-repositoryt. De är utkast för granskning, inte publicerade produkter eller fungerande betalningsintegrationer. Produkt-ZIP:ens integritet är kontrollerad. Underlaget beskriver signerade webhookar, belopps-/valutakontroll, idempotens, skyddad nedladdning och sandbox-prov före godkänd liveaktivering.
+
+---
+
+Nedan är historisk verifiering.
+
 # Automatisk affärsberedning — verifiering 2026-10-18
 
 Nya kompletta Scout–Jarvis-analyser sammanställer ett sparat affärsunderlag från befintliga specialiststeg: avgränsat erbjudande, hypotetiskt månadspris, valideringstest, leveransplan, beläggsstatus, risker och osänd säljtext. Sales Agent-text återanvänds när Sales ingår; annars skapas en uttryckligt märkt generisk mall utan mottagare. Inga extra modellsteg, fejkade kunder eller registrerade intäkter tillkommer.

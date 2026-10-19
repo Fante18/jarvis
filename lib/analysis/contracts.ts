@@ -27,12 +27,12 @@ export const specialists: Record<
   },
   validator: {
     name: "Validator Agent",
-    task: "Pröva betalningsviljan. Intresse eller diskussioner bevisar inte köpvilja. Föreslå billiga intervjuer, pris- och förbeställningstester med mätetal och stoppkriterier. Inga tester har utförts.",
+    task: "Pröva betalningsviljan. Intresse eller diskussioner bevisar inte köpvilja. Börja med ett litet intervjuprov, ett prisförslag eller en genomgång av ett befintligt arbetsflöde. Första testet ska kunna föreslås inom 14 dagar med högst 500 SEK i uppskattad extern kostnad; tid och arbetsinsats ska framgå. Kräv inte att en hel kundprodukt byggs före validering. Ange mätetal, fortsätt- och stoppkriterier samt realistisk kostnad, och lämna validation_tests tom om inget sådant test kan motiveras. Inga tester har utförts och ingen testkostnad är godkänd.",
     web: false,
   },
   strategist: {
     name: "Strategist Agent",
-    task: "Utveckla ett konkret erbjudande i opportunity.offer: avgränsad leverans, tydlig köpare, vilket problem som löses och vilket mätbart resultat som ska testas. Planera hur leveransen kan byggas och testas med begränsad budget. Bedöm vad AI kan utföra och vad som kräver verklig kompetens, kundåtkomst eller integration. Hitta inte på partnerskap, kunder, byggda produkter eller leveransförmåga.",
+    task: "Utveckla ett konkret erbjudande i opportunity.offer: avgränsad leverans, tydlig köpare, vilket problem som löses och vilket mätbart resultat som ska testas. Föreslå den minsta leverans som kan valideras före större utveckling. Jarvis kan idag skapa källbelagda analyser och dokumentutkast; egen programvara, kundintegrationer, inkorgsläsning, betalningar och produktleverans är inte tillgängliga agentverktyg. Beskriv sådana beroenden som återstående arbete och föreslå inte att ett komplett affärssystem ska byggas som första pilot. Bedöm vilken mänsklig kompetens, kundåtkomst och granskning som behövs. Hitta inte på partnerskap, kunder, byggda produkter eller leveransförmåga.",
     web: false,
   },
   finance: {
@@ -52,7 +52,7 @@ export const specialists: Record<
   },
   jarvis: {
     name: "Jarvis",
-    task: "Sammanställ en beslutsbar rekommendation efter Critic. Ange prioritering, osäkerheter och nästa valideringstest. Fyll fem poängdimensioner med motiveringar. Poäng är en prioriteringsmodell, aldrig sannolikhet för framgång. Uppgifter om faktisk betalningsvilja saknas tills valideringstester faktiskt genomförts.",
+    task: "Sammanställ en beslutsbar rekommendation efter Critic. Ange prioritering, osäkerheter och nästa valideringstest. Fyll fem poängdimensioner med heltal på skalan 0–100, aldrig en 0–10-skala. Kalibrera varje motivering: 0 innebär mycket svagt stöd, 25 svagt, 50 blandat/osäkert, 75 starkt och 100 mycket starkt stöd. Låga poäng är tillåtna när beläggen motiverar dem. Hög riskpoäng betyder lägre bedömd risk. Poäng är en prioriteringsmodell, aldrig sannolikhet för framgång. Uppgifter om faktisk betalningsvilja saknas tills valideringstester faktiskt genomförts.",
     web: false,
   },
 };
@@ -82,7 +82,17 @@ export const dimensionKeys = [
   "risk",
 ] as const;
 const dimension = z
-  .object({ score: z.number().int().min(0).max(100), reason: short })
+  .object({
+    score: z
+      .number()
+      .int()
+      .min(0)
+      .max(100)
+      .describe(
+        "Heltal på skalan 0–100: 0 mycket svagt, 25 svagt, 50 blandat, 75 starkt, 100 mycket starkt. Använd inte 0–10-skala. För risk betyder högre poäng lägre risk.",
+      ),
+    reason: short,
+  })
   .strict();
 export const dimensionsSchema = z
   .object({

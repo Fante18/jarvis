@@ -77,4 +77,49 @@ describe("autonomous commercial preparation", () => {
       results.find((s) => s.role === "sales")!.output.contact_draft,
     );
   });
+  it("withholds an expensive implementation pilot without rewriting its original cost", () => {
+    const results = stages();
+    const test = results.find((s) => s.role === "validator")!.output
+      .validation_tests[0];
+    test.estimated_cost_sek = 50000;
+    test.days = 90;
+    const report = finalReport(results);
+    expect(report.commercial_brief?.status).toBe("research");
+    expect(report.commercial_brief?.blockers.join(" ")).toContain(
+      "500 SEK och 14 dagar",
+    );
+    expect(report.commercial_brief?.validation_test?.estimated_cost_sek).toBe(
+      50000,
+    );
+    expect(test.estimated_cost_sek).toBe(50000);
+  });
+  it("selects an existing small test while preserving all original research proposals", () => {
+    const results = stages();
+    const tests = results.find((s) => s.role === "validator")!.output
+      .validation_tests;
+    tests[0].estimated_cost_sek = 50000;
+    tests[0].days = 90;
+    tests.push({
+      ...tests[0],
+      test: "Five voluntary problem interviews",
+      estimated_cost_sek: 0,
+      days: 7,
+    });
+    const report = finalReport(results);
+    expect(report.commercial_brief?.status).toBe("review");
+    expect(report.commercial_brief?.validation_test?.test).toBe(
+      "Five voluntary problem interviews",
+    );
+    expect(report.validation_tests[0].estimated_cost_sek).toBe(50000);
+    expect(report.validation_tests).toHaveLength(2);
+  });
+  it("keeps genuine low scores on the original scale instead of automatically multiplying them", () => {
+    const results = stages();
+    const dimensions = results.find((s) => s.role === "jarvis")!.output
+      .dimensions!;
+    for (const dimension of Object.values(dimensions)) dimension.score = 6;
+    const report = finalReport(results);
+    expect(report.scorecard.total).toBe(6);
+    expect(report.commercial_brief?.status).toBe("research");
+  });
 });
