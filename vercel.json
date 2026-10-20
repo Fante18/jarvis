@@ -3,5 +3,6 @@
   "buildCommand": "npm run build",
   "installCommand": "npm ci",
   "regions": ["arn1"],
+  "git": { "deploymentEnabled": false },
   "crons": []
 }

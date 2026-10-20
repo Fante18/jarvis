@@ -7,8 +7,10 @@
 - `lib/project-state.ts` låser projektet som nedstängt.
 - `proxy.ts` avvisar alla app-/API-anrop med HTTP 410 innan Supabase, OpenAI eller andra integrationer kontaktas.
 - `requireAI()` och `aiClient()` spärrar AI-användning även om en nyckel finns kvar i servermiljön.
-- `vercel.json` har inga cronjobb. Efter avstängningspubliceringen stängs även automatiska Git-publiceringar av i samma fil.
-- Lokala byggfiler, installerade projektberoenden och genererade testresultat kan tas bort och återskapas från källan om ägaren senare uttryckligen vill återstarta.
+- `vercel.json` har inga cronjobb och spärrar automatiska Git-publiceringar med `git.deploymentEnabled: false`.
+- Lokala byggfiler, installerade projektberoenden och genererade testresultat har rensats (cirka 925 MiB). Källkod och ursprunglig säkerhetskopia är kvar.
+
+Vercel bekräftar avstängningsversionen `61f2eea3633279c24df5a79a3da96d56409ce74b` som `READY` i produktion, med `jarvis-ai-platform.vercel.app` som alias. Spärren mot framtida Git-publiceringar läggs in först efter denna publicering. Den skyddade produktionens HTTP-svar har inte verifierats externt; HTTP-kontrollerna nedan utfördes lokalt.
 
 Två riktade avstängningstester och produktionsbygget inklusive TypeScript passerar. Riktiga lokala HTTP-anrop mot startsidan, workspace-API, cron-API och chatt-POST returnerar samtliga 410. Ingen lokal verifieringsserver lämnas igång. Historiska tester av aktiv AI-drift gäller versionen före avstängning.
 
