@@ -13,7 +13,9 @@ import { openAIOutput } from "./ai-output";
 import { diagnoseAIError } from "./ai-errors";
 import { tokenCost } from "@/lib/analysis/policy";
 import { dbCheck, HttpError } from "./http";
+import { PROJECT_CLOSED } from "@/lib/project-state";
 export function requireAI() {
+  if (PROJECT_CLOSED) throw new HttpError(410, "JARVIS är avstängt.");
   if (!process.env.OPENAI_API_KEY)
     throw new HttpError(
       503,
@@ -81,6 +83,7 @@ export async function workspaceContext(db: SupabaseClient, userId: string) {
   });
 }
 export function aiClient() {
+  requireAI();
   return new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
     maxRetries: 0,

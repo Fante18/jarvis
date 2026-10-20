@@ -1,3 +1,13 @@
+# Projektet nedstängt — 2026-10-20
+
+Ägaren har avslutat projektet. Cronkonfigurationen tas bort, samtliga appanrop stoppas i Proxy med HTTP 410 och OpenAI-klientens konstruktion spärras av en kodstyrd avstängning. Två avstängningstester och produktionsbygget inklusive typkontroll passerar. Lokal faktisk HTTP-kontroll av `/`, `/api/workspace`, `/api/cron/market-scan` och POST `/api/ai/chat` ger 410 innan API-kod körs. Verifieringsservern är avslutad.
+
+Supabase nekade både SQL-avstängning av scheman och project pause med saknad behörighet. Vercel project pause nekades med 403 för team `fante`. Dessa molnåtgärder har därför inte genomförts. Kod, säkerhetskopia och sparade molndata bevaras. Lokala återskapningsbara beroenden, byggfiler och testartefakter rensas. Se [avstängningsstatus och manuella kontosteg](docs/SHUTDOWN.md).
+
+Nedanstående är historiska verifieringar från utvecklingen, inte aktuell aktiv drift.
+
+---
+
 # Fortsatt affärsflöde — verifiering 2026-10-19
 
 ## Första riktiga schemalagda analysen

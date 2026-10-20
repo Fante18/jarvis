@@ -1,5 +1,7 @@
 # JARVIS
 
+> **Nedstängt 2026-10-20 på ägarens begäran.** Schemaläggningen är borttagen, alla appanrop stoppas med HTTP 410 och OpenAI-klienten är spärrad. Kod och data bevaras. Native paus av Vercel/Supabase nekades av anslutningarnas behörigheter och behöver kontrolleras manuellt. Historiska funktioner och testresultat nedan beskriver versionen före avstängning. Återstart kräver en medveten ändring av `lib/project-state.ts` och publiceringsinställningarna.
+
 En responsiv AI-arbetsyta byggd med Next.js App Router, TypeScript, Tailwind CSS, Supabase och OpenAI Agents SDK. Alla åtta sidor finns: Dashboard, AI Agents, Opportunities, Market Intelligence, Sales, Approvals, Ask Jarvis och Settings.
 
 ## Starta
